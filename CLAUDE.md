@@ -1,0 +1,405 @@
+# CLAUDE.md — Ansible Home Infrastructure Project
+
+## Project Overview
+
+This project automates the configuration of personal home and home-lab
+infrastructure using Ansible. It manages servers, workstations, laptops,
+desktops, and development/testing environments. Any host can be brought to its
+desired state by running a single `ansible-pull` command. The entire
+configuration is testable against Arch Linux, Ubuntu, and Debian using
+Molecule.
+
+## Project Status
+
+**Current Status**: Milestone 2 Complete
+
+Milestones 1 and 2 are complete. The controller repo and scaffold role are
+live on GitHub with passing CI. The scaffold role serves as the reference
+template for all future roles.
+
+---
+
+## Architecture Summary
+
+- **Composition unit:** Standalone Ansible roles (not collections). Each role
+  lives in its own Git repo under a dedicated GitHub organization.
+- **Controller repository:** Single repo (`ansible-controller`) containing the
+  playbook (`local.yml`), inventory, and `requirements.yml`. This is what
+  `ansible-pull` clones.
+- **GitHub organization:** `scbitworx` under a dedicated GitHub org.
+
+> For detailed rationale (roles vs. collections, standalone vs. dependency
+> chains, resource ownership), see [docs/architecture.md](docs/architecture.md)
+
+### Role Layers and Composition
+
+```text
+Layer 1 (all hosts):       base
+Layer 2 (by group):        server, workstation, laptop
+Layer 3 (by host):         <extension roles>
+Layer 4 (all hosts, last): dotfiles
+```
+
+All roles are **standalone** — no `meta/main.yml` dependencies. The playbook
+(`local.yml`) is the single place that defines which roles run on which hosts
+and in what order.
+
+### Extension Roles (Examples)
+
+| Role                          | Layer       | Purpose                        |
+| ----------------------------- | ----------- | ------------------------------ |
+| `syncthing_server`            | server      | Syncthing relay/server         |
+| `taskchampion_sync_server`    | server      | TaskChampion sync service      |
+| `devbox`                      | workstation | Development toolchains         |
+| `hypervisor`                  | workstation | Virtualization / containers    |
+| `intuos_pro`                  | workstation | Wacom tablet configuration     |
+| `darp6`                       | laptop      | System76 darp6 hardware quirks |
+
+---
+
+## Naming Conventions
+
+### Character Rules
+
+| Context                   | Allowed Characters                    | Separator |
+| ------------------------- | ------------------------------------- | --------- |
+| Ansible role names        | lowercase alphanumeric + underscore   | `_`       |
+| Ansible Galaxy namespaces | lowercase alphanumeric + underscore   | `_`       |
+| Ansible variables         | lowercase alphanumeric + underscore   | `_`       |
+| GitHub org names          | alphanumeric + hyphen                 | `-`       |
+| GitHub repo names         | alphanumeric + hyphen + underscore    | mixed     |
+
+### Naming Rules
+
+- **GitHub org:** `scbitworx`
+- **Role repos:** `ansible-role-<role_name>` (e.g., `ansible-role-syncthing_server`)
+- **Controller repo:** `ansible-controller`
+- **Role names:** lowercase alphanumeric + underscores only. Enforced by
+  `ansible-lint` (`^[a-z][a-z0-9_]*$`). Set explicitly in `meta/main.yml`
+  via `galaxy_info.role_name`.
+- **Public variables** (`defaults/main.yml`): `<role_name>_` prefix
+  (e.g., `base_packages`, `syncthing_server_port`)
+- **Private variables** (`vars/`): `__<role_name>_` prefix
+  (e.g., `__base_distro_packages`)
+- **Tags:** prefixed with role name
+- **Handlers:** `<Role_name> | <action>` (e.g., `Syncthing_server | restart`).
+  First letter must be uppercase to satisfy ansible-lint `name[casing]` rule.
+- **Task names:** Descriptive sentences starting with a verb
+
+### Complete Naming Map (Template)
+
+```text
+GitHub Org:            scbitworx
+Galaxy Namespace:      scbitworx
+
+Repo name:             ansible-role-syncthing_server
+Role name:             syncthing_server
+Galaxy FQDN:           scbitworx.syncthing_server
+Variable prefix:       syncthing_server_
+Private var prefix:    __syncthing_server_
+Tag prefix:            syncthing_server
+Handler format:        Syncthing_server | <action>
+meta/main.yml:         role_name: syncthing_server
+```
+
+> For detailed rationale (hyphens vs. underscores debate, community
+> precedents), see [docs/naming-rationale.md](docs/naming-rationale.md)
+
+---
+
+## Hosts and Inventory
+
+| Hostname | Type    | OS         | Groups                | Notes                   |
+| -------- | ------- | ---------- | --------------------- | ----------------------- |
+| ceres    | Laptop  | Arch Linux | workstations, laptops | System76 darp6 hardware |
+| mars     | Desktop | Arch Linux | workstations          | Desktop workstation     |
+| jupiter  | Server  | Arch Linux | servers               | Future: migrate to Ubuntu/Debian |
+
+### Inventory Structure
+
+```yaml
+all:
+  children:
+    servers:
+      hosts:
+        jupiter:
+    workstations:
+      hosts:
+        ceres:
+        mars:
+    laptops:
+      hosts:
+        ceres:
+```
+
+### Variable Precedence (most specific wins)
+
+1. Role defaults (`defaults/main.yml`) — lowest
+2. `group_vars/all.yml`
+3. `group_vars/<group>.yml`
+4. `host_vars/<host>.yml`
+5. Play/task vars, extra vars — highest
+
+### Inventory File Layout
+
+```text
+inventory/
+  hosts.yml
+  group_vars/
+    all.yml, servers.yml, workstations.yml, laptops.yml
+  host_vars/
+    ceres.yml, mars.yml, jupiter.yml
+```
+
+---
+
+## Controller Repository Structure
+
+```text
+ansible-controller/
+  ansible.cfg
+  local.yml                          # main playbook
+  requirements.yml                   # all roles with version pins (lockfile)
+  scripts/
+    bootstrap.sh                     # first-run bootstrap
+    integration/                     # virsh-based integration testing
+      create-base-vms.sh
+      run-integration-test.sh
+      verify-state.sh
+  templates/
+    ansible-pull-wrapper.sh.j2       # wrapper deployed to /usr/local/bin/
+  inventory/
+    hosts.yml
+    group_vars/ ...
+    host_vars/ ...
+```
+
+> For `local.yml` playbook structure, `ansible-pull` workflow, wrapper script
+> details, bootstrap flow, and scheduling policy, see
+> [docs/ansible-pull.md](docs/ansible-pull.md)
+
+---
+
+## Role Directory Structure (Template)
+
+```text
+ansible-role-<role_name>/
+  defaults/main.yml          # public variables (role-name-prefixed)
+  files/                     # static files
+  handlers/main.yml          # handlers (role-name-prefixed)
+  meta/main.yml              # Galaxy metadata (no dependencies)
+  molecule/default/          # Docker-based tests
+    molecule.yml, converge.yml, prepare.yml, verify.yml
+  tasks/
+    main.yml                 # entry point
+    Archlinux.yml            # distro-specific tasks (if needed)
+    Debian.yml               # shared Ubuntu/Debian tasks (if needed)
+  templates/                 # Jinja2 templates
+  tests/inventory, test.yml  # legacy test dir
+  vars/
+    Archlinux.yml            # Arch-specific variables
+    Debian.yml               # shared Ubuntu/Debian variables
+    main.yml                 # cross-distro internal variables
+  .github/workflows/ci.yml   # GitHub Actions CI pipeline
+  README.md, LICENSE, .ansible-lint, .yamllint, .gitignore
+```
+
+### `meta/main.yml` Template
+
+```yaml
+galaxy_info:
+  role_name: <role_name>
+  namespace: scbitworx
+  author: bwright
+  description: <description>
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+    - name: Ubuntu
+      versions: [all]
+    - name: Debian
+      versions: [all]
+
+dependencies: []
+```
+
+> **Note:** Galaxy platform name is `ArchLinux` (capital L), not `Archlinux`.
+> Ubuntu/Debian use `all` because the Galaxy schema doesn't include recent
+> codenames (`noble`, `bookworm`). The `namespace` field is used by Molecule
+> for role resolution.
+
+---
+
+## Distro Compatibility
+
+| Distribution | Use Case                       | Testing |
+| ------------ | ------------------------------ | ------- |
+| Arch Linux   | Workstations (current primary) | Yes     |
+| Ubuntu       | Servers, potential workstations | Yes    |
+| Debian       | Servers, potential workstations | Yes    |
+
+Each role uses `first_found` + `include_vars` for distro-specific variables
+and `ansible.builtin.package` for package manager abstraction. Most roles
+need only `Archlinux.yml`, `Debian.yml`, and `main.yml`.
+
+> For the full `first_found` pattern, cascading specificity details, and
+> rationale for per-role distro handling, see
+> [docs/distro-compatibility.md](docs/distro-compatibility.md)
+
+---
+
+## Version Pinning
+
+- Tag role repos with semver: `v1.0.0`, `v1.1.0`, `v2.0.0`
+- Controller `requirements.yml` pins exact tags (no branch names, no ranges)
+- `ansible-galaxy` has no semver range support for roles — this is a tooling
+  constraint, not a style choice
+- `requirements.yml` serves as both dependency declaration and lockfile
+
+> For detailed rationale and tooling constraints, see
+> [docs/architecture.md](docs/architecture.md#version-pinning-via-controller-requirementsyml)
+
+---
+
+## Resource Ownership
+
+Each file, package, and config resource is owned by **exactly one role**.
+
+| Concern                      | Owner              | Example                    |
+| ---------------------------- | ------------------ | -------------------------- |
+| Base packages                | `base`             | `base_packages`            |
+| Server packages              | `server`           | `server_packages`          |
+| Workstation packages         | `workstation`      | `workstation_packages`     |
+| Service-specific packages    | Extension role     | `syncthing_server` owns syncthing |
+| `ansible-pull` wrapper       | Controller `pre_tasks` | `/usr/local/bin/ansible-pull-wrapper` |
+| Cron scheduling              | `server` role      | `ansible.builtin.cron`     |
+| User-level personal config   | `dotfiles`         | `~/.config/git/config`     |
+
+---
+
+## Testing Strategy
+
+- **Unit testing:** Molecule + Docker (systemd in container) for all roles.
+  Three platforms: Arch, Ubuntu, Debian.
+- **Arch image:** Official `archlinux/archlinux:latest` + `prepare.yml` for
+  Python and sudo. No third-party dependency.
+- **Ubuntu/Debian images:** `geerlingguy/docker-ubuntu2404-ansible`,
+  `geerlingguy/docker-debian12-ansible`
+- **Integration testing:** virsh VMs with snapshot-revert for full-stack
+  validation (bootstrap through `ansible-pull`).
+
+> For Molecule configuration, Docker image details, `prepare.yml` patterns,
+> and precondition handling, see
+> [docs/molecule-testing.md](docs/molecule-testing.md)
+
+---
+
+## Dotfiles Architecture
+
+- **Infrastructure roles** install software and manage `/etc/`. They do not
+  deploy personal user preferences.
+- **The `dotfiles` role** owns all user-level config under `~/.config/`.
+  Uses `package_facts` for runtime detection — deploys config only for
+  installed software.
+- XDG `~/.config/` convention with symlinks for legacy tools.
+- Shell `conf.d/` drop-in pattern: `base` deploys `~/.config/bash/bashrc`
+  with a sourcing loop; `dotfiles` drops fragments into `conf.d/`.
+
+> For full dotfiles architecture, XDG conventions, symlink tables, detection
+> patterns, and file structure, see [docs/dotfiles.md](docs/dotfiles.md)
+
+---
+
+## Implementation Milestones
+
+| # | Milestone                          | Summary                                    |
+|---|------------------------------------|--------------------------------------------|
+| 1 | Foundation                         | GitHub org + controller repo               |
+| 2 | Scaffold Role + Testing + CI/CD    | Walking skeleton to validate full pipeline |
+| 3 | Base Role                          | Core system configuration                  |
+| 4 | Server + Workstation Roles         | Group-level core roles                     |
+| 5 | Laptop Core Role                   | Laptop-specific core role                  |
+| 6 | Initial Extension Roles            | First extension roles to validate pattern  |
+| 7 | Dotfiles Role                      | Personal config with runtime detection     |
+| 8 | Integration Testing (virsh VMs)    | Full-stack validation with real VMs        |
+
+> For detailed task lists, deliverables, and exit criteria for each
+> milestone, see [docs/milestones.md](docs/milestones.md)
+
+---
+
+## Key Design Decisions Summary
+
+| Decision               | Choice                    | Rationale                                       |
+| ---------------------- | ------------------------- | ----------------------------------------------- |
+| Composition unit       | Standalone roles          | Simpler than collections for single maintainer   |
+| Repo strategy          | One repo per role         | Independent versioning and testing               |
+| Repo hosting           | GitHub Organization       | Keeps personal profile clean                     |
+| Org naming             | `scbitworx`               | GitHub does not allow underscores in org names   |
+| Repo naming            | `ansible-role-<name>`     | Convention recognized by `ansible-galaxy`         |
+| Role naming            | Underscores only          | Required by `ansible-lint`; matches repo name    |
+| Variable naming        | `<role_name>_` prefix     | Prevents namespace collisions                    |
+| Version pinning        | Controller `requirements.yml` (exact tags) | No range support; lockfile pattern  |
+| Role composition       | Playbook-driven, no `meta/main.yml` deps | Standalone; independently testable  |
+| Resource ownership     | Each resource owned by exactly one role | No idempotency conflicts            |
+| Distro compatibility   | Per-role `first_found` + `include_vars` | Cascading specificity; graceful fallback |
+| Entry point            | `ansible-pull`            | Self-contained, no control node needed           |
+| Testing (unit)         | Molecule + Docker         | Community standard; seconds to spin up           |
+| Testing (integration)  | virsh VMs                 | Full kernel, real systemd, real package manager  |
+| Dotfiles               | Single role + runtime detection | Decoupled from infra roles              |
+| Shell config           | `conf.d/` drop-ins        | No file conflicts between roles                  |
+
+---
+
+## Repository Listing
+
+```text
+scbitworx/
+  ansible-controller
+  ansible-role-scaffold
+  ansible-role-base
+  ansible-role-server
+  ansible-role-workstation
+  ansible-role-laptop
+  ansible-role-dotfiles
+  ansible-role-darp6
+  ansible-role-syncthing_server
+  ansible-role-taskchampion_sync_server
+  ansible-role-devbox
+  ansible-role-hypervisor
+  ansible-role-intuos_pro
+  ...
+```
+
+---
+
+## Resolved Values
+
+- **GitHub organization:** `scbitworx`
+- **Galaxy namespace:** `scbitworx`
+- **Author (Galaxy metadata):** `bwright`
+- **Hostnames:** `ceres`, `mars`, `jupiter` (confirmed as actual
+  `/etc/hostname` values)
+
+## Tooling Documentation
+
+- [Ansible Documentation](https://docs.ansible.com/)
+- [Ansible Galaxy User Guide](https://docs.ansible.com/projects/galaxy-ng/en/latest/community/userguide)
+- [Molecule Documentation](https://docs.ansible.com/projects/molecule/)
+- [Docker Documentation](https://docs.docker.com)
+- [libvirt Documentation](https://libvirt.org/docs.html)
+- [virsh Documentation](https://www.libvirt.org/manpages/virsh.html)
+- [GitHub Documentation](https://docs.github.com/en)
+
+## Detailed Reference Documentation
+
+- [docs/architecture.md](docs/architecture.md) — Architecture rationale, role composition, resource ownership, version pinning
+- [docs/naming-rationale.md](docs/naming-rationale.md) — Why underscores, community precedents, variable conventions
+- [docs/ansible-pull.md](docs/ansible-pull.md) — Playbook structure, wrapper script, bootstrap, scheduling
+- [docs/distro-compatibility.md](docs/distro-compatibility.md) — `first_found` pattern, per-role distro handling
+- [docs/molecule-testing.md](docs/molecule-testing.md) — Docker config, image choices, prepare.yml, preconditions
+- [docs/dotfiles.md](docs/dotfiles.md) — XDG conventions, runtime detection, shell drop-in pattern
+- [docs/milestones.md](docs/milestones.md) — Implementation milestones with full task lists
+- [docs/workspace-setup.md](docs/workspace-setup.md) — Claude Code container setup checklist

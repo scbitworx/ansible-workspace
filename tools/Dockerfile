@@ -1,0 +1,75 @@
+# =============================================================================
+# Claude Code Sandboxed Container
+#
+# Runs as non-root from the start. No firewall, no privilege drop, no su-exec.
+# All hardening (cap-drop, read-only root, resource limits) applied at runtime
+# via docker run flags.
+# =============================================================================
+
+FROM alpine:3.21.3
+
+# hadolint ignore=DL3018
+RUN apk update && \
+    apk add --no-cache \
+    bash \
+    libgcc \
+    coreutils \
+    grep \
+    sed \
+    gawk \
+    findutils \
+    # Version control
+    git \
+    github-cli \
+    # Networking
+    curl \
+    wget \
+    # Search & file tools
+    ripgrep \
+    fd \
+    jq \
+    tree \
+    file \
+    # Archive tools
+    tar \
+    gzip \
+    unzip \
+    # Build tools (for native npm packages / nvm install)
+    build-base \
+    # Python
+    python3 \
+    py3-pip \
+    # Process & system
+    lsof \
+    # SSH
+    openssh-client \
+    # nvm needs these on Alpine
+    libstdc++ \
+    linux-headers \
+    # Ansible
+    ansible \
+    ansible-lint \
+    yamllint
+
+RUN addgroup -g 1000 agent \
+    && adduser -D -u 1000 -G agent -s /bin/bash -h /home/agent agent
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+USER agent
+RUN curl -fsSL https://claude.ai/install.sh | bash
+ENV PATH="/home/agent/.local/bin:${PATH}"
+ENV DISABLE_AUTOUPDATER=1
+
+USER root
+RUN mkdir -p /workspace && chown agent:agent /workspace \
+    && find / -perm /6000 -type f -exec chmod a-s {} + 2>/dev/null || true
+
+COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
+
+USER agent
+WORKDIR /workspace
+ENV HOME=/home/agent
+ENV GIT_TERMINAL_PROMPT=0
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["claude"]

@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+
+docker run --rm -it \
+    --cap-drop=ALL \
+    --security-opt no-new-privileges:true \
+    --read-only --init \
+    --tmpfs /tmp:rw,noexec,nosuid,size=512m \
+    --tmpfs /home/agent/.local/state:rw,noexec,nosuid,size=64m \
+    --memory=4g --memory-swap=4g \
+    --cpus=2 --pids-limit=512 \
+    --ulimit nofile=4096:8192 \
+    -e ANTHROPIC_API_KEY \
+    -e GIT_USER_NAME="bwright" \
+    -e GIT_USER_EMAIL="bwright@bitworx.org" \
+    -e GH_TOKEN="$(pass cloud/github/scbitworx/claude-box-access-token)" \
+    -v "$HOME/.claude:/home/agent/.claude" \
+    -v "$HOME/.claude.json:/home/agent/.claude.json" \
+    -v "$(pwd):/workspace" \
+    provisioner-agent
