@@ -64,12 +64,12 @@ USER root
 RUN mkdir -p /workspace && chown agent:agent /workspace \
     && find / -perm /6000 -type f -exec chmod a-s {} + 2>/dev/null || true
 
-COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --chmod=755 entrypoint-agent.sh /usr/local/bin/entrypoint-agent.sh
 
 USER agent
 WORKDIR /workspace
 ENV HOME=/home/agent
 ENV GIT_TERMINAL_PROMPT=0
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint-agent.sh"]
 CMD ["claude"]

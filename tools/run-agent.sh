@@ -83,5 +83,5 @@ docker run --rm -it \
     -v "$HOME/.claude.json:/home/agent/.claude.json" \
     -v "$HOST_WORKSPACE:/workspace" \
     -v "$SSH_TMPDIR/id_ed25519:/run/ssh-key/id_ed25519:ro" \
-    -v "$(cd "$(dirname "$0")" && pwd)/ssh_config.test-runner:/run/ssh-config/test-runner:ro" \
+    -v "$(cd "$(dirname "$0")" && pwd)/ssh-config-test-runner:/run/ssh-config/test-runner:ro" \
     "$AGENT_IMAGE"
