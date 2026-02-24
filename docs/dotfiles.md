@@ -37,9 +37,10 @@ symlink is created.
 
 | Tool       | Symlink                | Target                         |
 | ---------- | ---------------------- | ------------------------------ |
+| `bash`     | `~/.bash_profile`      | `~/.config/bash/bash_profile`  |
 | `bash`     | `~/.bashrc`            | `~/.config/bash/bashrc`        |
-| `bash`     | `~/.profile`           | `~/.config/bash/profile`       |
-| `readline` | `~/.inputrc`           | `~/.config/bash/inputrc`       |
+| `bash`     | `~/.profile`           | `~/.config/profile`            |
+| `readline` | `~/.inputrc`           | `~/.config/readline/inputrc`   |
 
 The rule: if a tool hardcodes `~/.<something>` as its config path and does not
 support `~/.config/`, deploy to `~/.config/<tool>/` and symlink.
@@ -48,16 +49,17 @@ support `~/.config/`, deploy to `~/.config/<tool>/` and symlink.
 
 ## User Variables
 
-Each role that deploys user-level files defines a public variable for the
-target username in `defaults/main.yml`:
+Each role that deploys user-level files defines public variables for user
+management in `defaults/main.yml`:
 
-- **`base` role:** `base_user` — the primary user account created/managed by
-  the base role. Used for shell skeleton, home directory structure.
+- **`base` role:** `base_admin_users` — a list of administrative user
+  accounts. Each entry creates a user, assigns admin group membership
+  (`wheel`/`sudo`), deploys a sudoers drop-in, authorized keys, and the
+  shell skeleton. Defaults to `[]` — actual users are defined in the
+  controller inventory (`group_vars/all.yml`).
 - **`dotfiles` role:** `dotfiles_user` — the user whose personal config is
-  managed. Defaults to the same value as `base_user`.
-
-Both default to a sensible value in `defaults/main.yml` and can be overridden
-via `group_vars/all.yml` or `host_vars/`.
+  managed. Defined in `defaults/main.yml` and can be overridden via
+  `group_vars/all.yml` or `host_vars/`.
 
 ---
 
@@ -75,51 +77,57 @@ export HISTSIZE=10000
 
 # Source drop-in fragments
 if [ -d ~/.config/bash/conf.d ]; then
-  for f in ~/.config/bash/conf.d/*.sh; do
+  for f in ~/.config/bash/conf.d/*.bash; do
     [ -r "$f" ] && . "$f"
   done
 fi
 ```
 
-What `base` creates:
+What `base` creates (per-user tasks looped over `base_admin_users`):
 
 ```yaml
-# base/tasks/main.yml (shell skeleton excerpt)
-- name: Create bash config directories
-  ansible.builtin.file:
-    path: "~{{ base_user }}/.config/bash/conf.d"
-    state: directory
-    recurse: true
-    owner: "{{ base_user }}"
-    mode: "0755"
-
-- name: Deploy bashrc
-  ansible.builtin.template:
-    src: bashrc.j2
-    dest: "~{{ base_user }}/.config/bash/bashrc"
-    owner: "{{ base_user }}"
-    mode: "0644"
-
-- name: Symlink bashrc to home directory
-  ansible.builtin.file:
-    src: ".config/bash/bashrc"
-    dest: "~{{ base_user }}/.bashrc"
-    state: link
-    owner: "{{ base_user }}"
-
-- name: Deploy profile
+# base/tasks/per_user.yml (shell skeleton excerpt)
+- name: Deploy profile for {{ __base_admin_user.name }}
   ansible.builtin.template:
     src: profile.j2
-    dest: "~{{ base_user }}/.config/bash/profile"
-    owner: "{{ base_user }}"
+    dest: "{{ __base_admin_user_home }}/.config/profile"
+    owner: "{{ __base_admin_user.name }}"
     mode: "0644"
 
-- name: Symlink profile to home directory
+- name: Deploy bash_profile for {{ __base_admin_user.name }}
+  ansible.builtin.template:
+    src: bash_profile.j2
+    dest: "{{ __base_admin_user_home }}/.config/bash/bash_profile"
+    owner: "{{ __base_admin_user.name }}"
+    mode: "0644"
+
+- name: Deploy bashrc for {{ __base_admin_user.name }}
+  ansible.builtin.template:
+    src: bashrc.j2
+    dest: "{{ __base_admin_user_home }}/.config/bash/bashrc"
+    owner: "{{ __base_admin_user.name }}"
+    mode: "0644"
+
+- name: Symlink profile to home directory for {{ __base_admin_user.name }}
   ansible.builtin.file:
-    src: ".config/bash/profile"
-    dest: "~{{ base_user }}/.profile"
+    src: ".config/profile"
+    dest: "{{ __base_admin_user_home }}/.profile"
     state: link
-    owner: "{{ base_user }}"
+    owner: "{{ __base_admin_user.name }}"
+
+- name: Symlink bash_profile to home directory for {{ __base_admin_user.name }}
+  ansible.builtin.file:
+    src: ".config/bash/bash_profile"
+    dest: "{{ __base_admin_user_home }}/.bash_profile"
+    state: link
+    owner: "{{ __base_admin_user.name }}"
+
+- name: Symlink bashrc to home directory for {{ __base_admin_user.name }}
+  ansible.builtin.file:
+    src: ".config/bash/bashrc"
+    dest: "{{ __base_admin_user_home }}/.bashrc"
+    state: link
+    owner: "{{ __base_admin_user.name }}"
 ```
 
 The `base` role knows nothing about downstream tools. The `dotfiles` role
@@ -149,8 +157,8 @@ software and deploys configuration conditionally:
 
 - name: Deploy git shell aliases
   ansible.builtin.copy:
-    src: bash/conf.d/git.sh
-    dest: "~{{ dotfiles_user }}/.config/bash/conf.d/git.sh"
+    src: bash/conf.d/git.bash
+    dest: "~{{ dotfiles_user }}/.config/bash/conf.d/git.bash"
     owner: "{{ dotfiles_user }}"
     mode: "0644"
   when: "'git' in ansible_facts.packages"
@@ -199,7 +207,7 @@ Then in tasks:
 - name: Deploy docker config
   ansible.builtin.copy:
     src: docker/config.json
-    dest: "~{{ dotfiles_user }}/.docker/config.json"
+    dest: "~{{ dotfiles_user }}/.config/docker/config.json"
     owner: "{{ dotfiles_user }}"
     mode: "0644"
   when: "__dotfiles_package_names.docker in ansible_facts.packages"
@@ -219,8 +227,8 @@ ansible-role-dotfiles/
   files/
     bash/
       conf.d/
-        git.sh               # git aliases and functions
-        docker.sh            # docker aliases
+        git.bash             # git aliases and functions
+        docker.bash          # docker aliases
     tmux/
       tmux.conf
     nvim/

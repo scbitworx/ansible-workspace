@@ -338,6 +338,8 @@ does not grant full access.
 - Login profile lives at `~/.config/profile` (not under `bash/`) because it
   is sourced by display managers and POSIX shells — not just bash.
   `~/.profile` symlinks to it.
+- Bash login profile at `~/.config/bash/bash_profile` ensures bash login
+  shells source `~/.profile`. `~/.bash_profile` symlinks to it.
 
 > For full dotfiles architecture, XDG conventions, symlink tables, detection
 > patterns, and file structure, see [docs/dotfiles.md](docs/dotfiles.md)

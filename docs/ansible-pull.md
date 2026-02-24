@@ -34,48 +34,48 @@ then core roles (by group), then host-specific extension roles, then
 - hosts: all
   become: true
   roles:
-    - bit_pit.base
+    - scbitworx.base
 
 - hosts: servers
   become: true
   roles:
-    - bit_pit.server
+    - scbitworx.server
 
 - hosts: workstations
   become: true
   roles:
-    - bit_pit.workstation
+    - scbitworx.workstation
 
 - hosts: laptops
   become: true
   roles:
-    - bit_pit.laptop
+    - scbitworx.laptop
 
 # --- Host-specific extension roles (examples — will grow over time) ---
 - hosts: jupiter
   become: true
   roles:
-    - bit_pit.syncthing_server
-    - bit_pit.taskchampion_sync_server
+    - scbitworx.syncthing_server
+    - scbitworx.taskchampion_sync_server
 
 - hosts: ceres
   become: true
   roles:
-    - bit_pit.darp6
-    - bit_pit.devbox
-    - bit_pit.hypervisor
+    - scbitworx.darp6
+    - scbitworx.devbox
+    - scbitworx.hypervisor
 
 - hosts: mars
   become: true
   roles:
-    - bit_pit.devbox
-    - bit_pit.hypervisor
+    - scbitworx.devbox
+    - scbitworx.hypervisor
 
 # --- Dotfiles runs last (user-level config, no privilege escalation) ---
 - hosts: all
   become: false
   roles:
-    - bit_pit.dotfiles
+    - scbitworx.dotfiles
 ```
 
 ---
@@ -180,7 +180,7 @@ controller includes `scripts/bootstrap.sh`:
 #!/bin/bash
 set -euo pipefail
 
-REPO="https://github.com/bit_pit/ansible-controller.git"
+REPO="https://github.com/scbitworx/ansible-controller.git"
 
 # Install Ansible if not present (distro-aware)
 if ! command -v ansible-pull &>/dev/null; then

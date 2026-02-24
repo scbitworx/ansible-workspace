@@ -89,12 +89,12 @@ as a lockfile in other ecosystems.
 ```yaml
 # requirements.yml
 roles:
-  - name: bit_pit.base
-    src: git+https://github.com/bit_pit/ansible-role-base.git
+  - name: scbitworx.base
+    src: git+https://github.com/scbitworx/ansible-role-base.git
     version: v1.0.0
 
-  - name: bit_pit.server
-    src: git+https://github.com/bit_pit/ansible-role-server.git
+  - name: scbitworx.server
+    src: git+https://github.com/scbitworx/ansible-role-server.git
     version: v1.0.0
 
   # ... every role listed with explicit version pins
