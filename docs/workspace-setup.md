@@ -77,6 +77,24 @@ refresh logic.
 - [x] Configure git to use the token for HTTPS operations. Handled in
       `entrypoint.sh` at runtime (rewrites both SSH and HTTPS URLs).
 
+### Git Remote URLs
+
+Git remote URLs for cloned repos should use plain HTTPS without embedded
+tokens:
+
+```text
+https://github.com/scbitworx/ansible-role-base.git    # correct
+https://oauth2:ghp_xxx@github.com/scbitworx/...       # wrong — stale PAT
+```
+
+The `gh` CLI (authenticated via `GH_TOKEN`) acts as the git credential
+helper, so embedded tokens are unnecessary and will cause push failures
+when the token expires. Fix with:
+
+```bash
+git remote set-url origin https://github.com/scbitworx/<repo>.git
+```
+
 ## Git Identity
 
 - [x] Configure git user inside the container. Handled in `entrypoint.sh`
