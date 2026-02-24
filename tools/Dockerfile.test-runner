@@ -59,6 +59,8 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN pip install --no-cache-dir \
     ansible-core \
+    ansible-lint \
+    yamllint \
     molecule \
     'molecule-plugins[docker]'
 
