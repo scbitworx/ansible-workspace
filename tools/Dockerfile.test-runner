@@ -66,7 +66,10 @@ RUN pip install --no-cache-dir \
 # installs to ~/.ansible which varies by user — use a fixed path instead).
 ENV ANSIBLE_COLLECTIONS_PATH=/opt/ansible-collections
 RUN mkdir -p "$ANSIBLE_COLLECTIONS_PATH" \
-    && ansible-galaxy collection install -p "$ANSIBLE_COLLECTIONS_PATH" community.general \
+    && ansible-galaxy collection install -p "$ANSIBLE_COLLECTIONS_PATH" \
+       community.general \
+       community.docker \
+       ansible.posix \
     && chown -R agent:agent "$ANSIBLE_COLLECTIONS_PATH"
 
 # Make the venv and Ansible env available in ALL SSH sessions (including
@@ -74,7 +77,7 @@ RUN mkdir -p "$ANSIBLE_COLLECTIONS_PATH" \
 # every SSH connection regardless of shell mode.
 RUN echo 'PATH=/opt/molecule-venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' >> /etc/environment \
     && echo 'ANSIBLE_COLLECTIONS_PATH=/opt/ansible-collections' >> /etc/environment \
-    && sed -i 's/^#\?UsePAM .*/UsePAM yes/' /etc/ssh/sshd_config \
+    && sed -i 's/^#\?UsePAM .*/UsePAM no/' /etc/ssh/sshd_config \
     && sed -i 's/^#\?PermitUserEnvironment .*/PermitUserEnvironment yes/' /etc/ssh/sshd_config
 
 # Mark all repos under /workspace as git safe directories (bind-mounted, different owner)

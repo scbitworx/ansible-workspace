@@ -1,0 +1,67 @@
+# =============================================================================
+# Docker Compose — Claude Code Agent + Test-Runner Sidecar
+#
+# The wrapper script (run-agent.sh) handles ephemeral SSH keygen and env var
+# exports. The test-runner starts via "docker compose up -d", while the agent
+# runs interactively via "docker compose run" for proper stdin forwarding.
+#
+# Required environment variables (set by run-agent.sh):
+#   SSH_TMPDIR        — path to temp dir containing ephemeral SSH keypair
+#   HOST_WORKSPACE    — host path to the workspace (for bind mounts)
+#   GH_TOKEN          — GitHub token for authenticated git operations
+#   ANTHROPIC_API_KEY — Claude API key
+# =============================================================================
+
+services:
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test-runner
+    image: test-runner:latest
+    container_name: test-runner
+    hostname: test-runner
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOST_WORKSPACE:?required}:/workspace
+      - ${SSH_TMPDIR:?required}/id_ed25519.pub:/run/ssh-pubkey/authorized_keys:ro
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    image: provisioner-agent:latest
+    container_name: provisioner-agent
+    hostname: provisioner-agent
+    depends_on:
+      - test-runner
+    stdin_open: true
+    tty: true
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=512m
+      - /home/agent/.local/state:rw,noexec,nosuid,size=64m
+      - /home/agent/.ssh:rw,noexec,nosuid,size=1m,uid=1000,gid=1000,mode=700
+    mem_limit: 4g
+    memswap_limit: 4g
+    cpus: 2
+    pids_limit: 512
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 8192
+    environment:
+      - ANTHROPIC_API_KEY
+      - GIT_USER_NAME=bwright
+      - GIT_USER_EMAIL=bwright@bitworx.org
+      - GH_TOKEN
+    volumes:
+      - ${HOME:?required}/.claude:/home/agent/.claude
+      - ${HOME:?required}/.claude.json:/home/agent/.claude.json
+      - ${HOST_WORKSPACE:?required}:/workspace
+      - ${SSH_TMPDIR:?required}/id_ed25519:/run/ssh-key/id_ed25519:ro
+      - ./ssh-config-test-runner:/run/ssh-config/test-runner:ro

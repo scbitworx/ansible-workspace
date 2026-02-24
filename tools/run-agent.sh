@@ -4,30 +4,28 @@ set -euo pipefail
 # =============================================================================
 # run-agent — Start Claude Code with a test-runner sidecar
 #
-# Creates a private Docker network, generates ephemeral SSH keys, starts the
-# test-runner sidecar (with Docker socket access but no credentials), then
-# starts the hardened Claude Code container. On exit, everything is cleaned up.
+# Generates an ephemeral SSH keypair, exports required environment variables,
+# and delegates all container orchestration to Docker Compose.
+#
+# The test-runner starts in the background. The agent container runs in the
+# foreground with an interactive TTY so Claude Code receives stdin.
 # =============================================================================
 
-NETWORK_NAME="claude-net"
-RUNNER_CONTAINER="test-runner"
-AGENT_IMAGE="provisioner-agent:latest"
-RUNNER_IMAGE="test-runner:latest"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE="$(pwd)"
 
 # --- Resolve workspace mount path ---
 # If running inside a container, the bind-mount source path (on the host)
 # may differ from the path seen inside this container. Allow override.
-HOST_WORKSPACE="${HOST_WORKSPACE:-$WORKSPACE}"
+export HOST_WORKSPACE="${HOST_WORKSPACE:-$WORKSPACE}"
 
 # --- Ephemeral SSH key pair ---
 SSH_TMPDIR=$(mktemp -d)
+export SSH_TMPDIR
 
 cleanup() {
-    echo "Cleaning up..."
-    docker stop "$RUNNER_CONTAINER" 2>/dev/null || true
-    docker rm "$RUNNER_CONTAINER" 2>/dev/null || true
-    docker network rm "$NETWORK_NAME" 2>/dev/null || true
+    echo "Stopping containers..."
+    docker compose -f "$SCRIPT_DIR/docker-compose.yml" down 2>/dev/null || true
     rm -rf "$SSH_TMPDIR"
     echo "Done."
 }
@@ -35,53 +33,17 @@ trap cleanup EXIT
 
 ssh-keygen -t ed25519 -f "$SSH_TMPDIR/id_ed25519" -N "" -q
 
-# --- Docker network ---
-if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
-    docker network create "$NETWORK_NAME" >/dev/null
-fi
+# --- GitHub token ---
+export GH_TOKEN="${GH_TOKEN:-$(pass cloud/github/scbitworx/claude-box-access-token)}"
 
-# --- Start test-runner sidecar ---
-docker run -d --rm \
-    --name "$RUNNER_CONTAINER" \
-    --hostname "$RUNNER_CONTAINER" \
-    --network "$NETWORK_NAME" \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "$HOST_WORKSPACE:/workspace" \
-    -v "$SSH_TMPDIR/id_ed25519.pub:/run/ssh-pubkey/authorized_keys:ro" \
-    "$RUNNER_IMAGE" >/dev/null
+# --- Build images ---
+docker compose -f "$SCRIPT_DIR/docker-compose.yml" build
 
-echo "Test-runner sidecar started."
+# --- Start test-runner in the background ---
+docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d test-runner
 
-# --- Wait for sshd to be ready ---
-for i in $(seq 1 30); do
-    if docker exec "$RUNNER_CONTAINER" test -f /run/sshd.pid 2>/dev/null ||
-       docker exec "$RUNNER_CONTAINER" pgrep -x sshd >/dev/null 2>&1; then
-        break
-    fi
-    sleep 0.5
-done
-
-# --- Start Claude Code container ---
-docker run --rm -it \
-    --name provisioner-agent \
-    --hostname provisioner-agent \
-    --network "$NETWORK_NAME" \
-    --cap-drop=ALL \
-    --security-opt no-new-privileges:true \
-    --read-only --init \
-    --tmpfs /tmp:rw,noexec,nosuid,size=512m \
-    --tmpfs /home/agent/.local/state:rw,noexec,nosuid,size=64m \
-    --tmpfs /home/agent/.ssh:rw,noexec,nosuid,size=1m,uid=1000,gid=1000,mode=700 \
-    --memory=4g --memory-swap=4g \
-    --cpus=2 --pids-limit=512 \
-    --ulimit nofile=4096:8192 \
-    -e ANTHROPIC_API_KEY \
-    -e GIT_USER_NAME="bwright" \
-    -e GIT_USER_EMAIL="bwright@bitworx.org" \
-    -e GH_TOKEN="$(pass cloud/github/scbitworx/claude-box-access-token)" \
-    -v "$HOME/.claude:/home/agent/.claude" \
-    -v "$HOME/.claude.json:/home/agent/.claude.json" \
-    -v "$HOST_WORKSPACE:/workspace" \
-    -v "$SSH_TMPDIR/id_ed25519:/run/ssh-key/id_ed25519:ro" \
-    -v "$(cd "$(dirname "$0")" && pwd)/ssh-config-test-runner:/run/ssh-config/test-runner:ro" \
-    "$AGENT_IMAGE"
+# --- Run agent interactively (stdin + tty forwarded) ---
+# "docker compose run" is the Compose equivalent of "docker run -it" — it
+# properly attaches stdin to a single service. The --rm flag removes the
+# one-off container on exit.
+docker compose -f "$SCRIPT_DIR/docker-compose.yml" run --rm agent
