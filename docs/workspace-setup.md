@@ -6,7 +6,7 @@
   - [Python Packages](#python-packages)
   - [GitHub Authentication (Fine-Grained PAT)](#github-authentication-fine-grained-pat)
   - [Git Identity](#git-identity)
-  - [Molecule Testing (Run on Host)](#molecule-testing-run-on-host)
+  - [Molecule Testing (Test-Runner Sidecar)](#molecule-testing-test-runner-sidecar)
   - [Verification](#verification)
 <!--toc:end-->
 
@@ -83,45 +83,80 @@ refresh logic.
       at runtime via `GIT_USER_NAME` and `GIT_USER_EMAIL` env vars (passed by
       `run-agent`).
 
-## Molecule Testing (Run on Host)
+## Molecule Testing (Test-Runner Sidecar)
 
 Molecule requires Docker to create test containers. Rather than mounting the
-host Docker socket into the Claude Code container (which grants root-equivalent
-access to the host), run Molecule on your host machine where Docker is already
-available.
+host Docker socket into the hardened Claude Code container (which would
+undermine its security model), a **test-runner sidecar container** handles
+Molecule execution.
 
-**Inside the container** (Claude Code handles):
+### Architecture
 
-- Editing role files
-- `yamllint .` and `ansible-lint` — catches most errors without Docker
-- Git commits, pushes, tags
-- `gh` commands (CI status, PRs, repo creation)
+```text
+Host
+├── Docker network: claude-net
+│
+├── provisioner-agent (hardened — cap-drop=ALL, read-only, no-new-privileges)
+│   ├── Credentials: API key, GH token
+│   ├── Can: edit files, lint, git, SSH to test-runner
+│   └── Cannot: access Docker socket
+│
+└── test-runner (Molecule execution)
+    ├── Credentials: NONE
+    ├── Can: run molecule (spawns sibling containers via host Docker)
+    └── Cannot: access API keys, GH tokens, ~/.claude
+```
 
-**On the host** (you run manually):
+Claude Code SSHs into the test-runner to execute Molecule commands. Files are
+shared via bind mount (same `/workspace` path in both containers).
 
-- `molecule test` — full integration test with Docker containers
+### Build Images
 
-### Host Prerequisites
+```bash
+# Claude Code container (unchanged)
+docker build -t provisioner-agent -f tools/Dockerfile tools/
 
-- [x] Python 3 + pip
-- [x] Docker (running)
-- [x] Install the Molecule toolchain:
+# Test-runner sidecar
+docker build -t test-runner -f tools/Dockerfile.test-runner tools/
+```
 
-  ```bash
-  pip install ansible-core molecule molecule-plugins[docker]
-  ansible-galaxy collection install community.general
-  ```
+### Run
 
-### Typical Workflow
+`run-agent` orchestrates both containers automatically:
 
-1. Claude Code edits files and runs `yamllint . && ansible-lint`
-2. Claude Code commits and pushes
-3. You run `molecule test` on the host if needed (or let GitHub Actions CI
-   handle it)
+```bash
+./tools/run-agent
+```
 
-In practice, lint catches most issues. Molecule is the slower step that
-validates convergence and idempotence — GitHub Actions CI runs it on every
-push, so running it locally is optional.
+This creates the Docker network, generates ephemeral SSH keys, starts the
+test-runner sidecar, then starts Claude Code. Everything is cleaned up on exit.
+
+### Usage from Inside Claude Code
+
+```bash
+# Full test suite
+ssh test-runner "cd /workspace/ansible-role-base && molecule test"
+
+# Fast iteration (reuse containers between runs)
+ssh test-runner "cd /workspace/ansible-role-base && molecule converge"
+ssh test-runner "cd /workspace/ansible-role-base && molecule verify"
+ssh test-runner "cd /workspace/ansible-role-base && molecule destroy"
+```
+
+### Security Model
+
+| Property              | Claude Code      | Test Runner      |
+|-----------------------|------------------|------------------|
+| cap-drop=ALL          | Yes              | No (needs caps)  |
+| read-only root        | Yes              | No               |
+| no-new-privileges     | Yes              | No               |
+| Docker socket         | No               | Yes              |
+| API key / GH token    | Yes              | No               |
+| ~/.claude access      | Yes              | No               |
+
+The test-runner is intentionally less hardened (it needs Docker access), but
+has zero credentials. The worst case is equivalent to any Docker user on the
+host.
 
 ## Verification
 
@@ -134,6 +169,9 @@ Run these inside the container to confirm everything works:
 - [x] `gh repo list scbitworx` — can list org repos
 - [x] `git clone https://github.com/scbitworx/ansible-controller.git /tmp/test && rm -rf /tmp/test` — clone works
 
-Run this on the host to confirm Molecule works:
+Test the sidecar integration:
 
-- [ ] Clone a role repo, run `molecule test` — full pipeline passes
+- [ ] `ssh test-runner hostname` — prints "test-runner"
+- [ ] `ssh test-runner "cd /workspace/ansible-role-scaffold && molecule test"` — full pipeline passes
+- [ ] Verify no credentials leak: `ssh test-runner 'echo $ANTHROPIC_API_KEY'` — empty
+- [ ] Exit Claude Code — test-runner auto-stops, network cleaned up, keys deleted

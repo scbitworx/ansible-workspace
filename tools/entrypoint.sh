@@ -35,6 +35,22 @@ fi
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/.cache}"
 export ANSIBLE_HOME="${ANSIBLE_HOME:-/tmp/.ansible}"
 
+# Set up SSH client config to include mounted config snippets (e.g. test-runner).
+# The config dir is on a tmpfs so it's writable despite the read-only root.
+SSH_DIR="$HOME/.ssh"
+mkdir -p "$SSH_DIR"
+if [ -d /run/ssh-config ]; then
+    echo "Include /run/ssh-config/*" > "$SSH_DIR/config"
+    chmod 600 "$SSH_DIR/config"
+fi
+# Copy the mounted SSH private key to ~/.ssh with correct permissions.
+# The bind-mounted file at /run/ssh-key/ is read-only and owned by root,
+# so SSH refuses to use it directly (requires 600 + owner match).
+if [ -f /run/ssh-key/id_ed25519 ]; then
+    cp /run/ssh-key/id_ed25519 "$SSH_DIR/id_ed25519"
+    chmod 600 "$SSH_DIR/id_ed25519"
+fi
+
 # Replace this shell with the actual command (default: "claude", set by CMD
 # in the Dockerfile). This ensures the command runs as PID 1 and receives
 # signals (e.g. SIGTERM) directly.

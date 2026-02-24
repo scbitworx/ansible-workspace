@@ -1,0 +1,87 @@
+# =============================================================================
+# Test Runner Sidecar Container
+#
+# Runs Molecule tests via the host Docker daemon (socket mount). No credentials
+# are passed to this container. Claude Code SSHs into it to execute tests.
+#
+# Key design points:
+# - Alpine-based for small image size
+# - Python venv because Alpine marks system Python as externally-managed (PEP 668)
+# - docker-cli only (no nested daemon) — talks to host via socket
+# - openssh-server with key auth only, no passwords
+# - Non-root user agent (UID 1000) matching Claude Code container
+# =============================================================================
+
+FROM alpine:3.21.3
+
+# hadolint ignore=DL3018
+RUN apk update && \
+    apk add --no-cache \
+    bash \
+    coreutils \
+    # Docker CLI (talks to host daemon via socket — no nested Docker)
+    docker-cli \
+    # Python + venv for Molecule toolchain
+    python3 \
+    py3-pip \
+    py3-virtualenv \
+    # SSH server (key auth only)
+    openssh-server \
+    # Git (needed by ansible-galaxy and molecule)
+    git \
+    # Process tools (pgrep used by run-agent readiness check)
+    procps \
+    # Build deps for Python packages with native extensions
+    build-base \
+    python3-dev \
+    libffi-dev
+
+# Create agent user (UID 1000 to match Claude Code container)
+# passwd -u unlocks the account so sshd allows pubkey login.
+# adduser -D creates a locked account (! in /etc/shadow) which sshd rejects.
+RUN addgroup -g 1000 agent \
+    && adduser -D -u 1000 -G agent -s /bin/bash -h /home/agent agent \
+    && passwd -u agent
+
+# Configure sshd: key auth only, no passwords, no root login
+RUN sed -i \
+    -e 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/' \
+    -e 's/^#\?PermitRootLogin .*/PermitRootLogin no/' \
+    -e 's/^#\?PubkeyAuthentication .*/PubkeyAuthentication yes/' \
+    -e 's/^#\?AllowUsers .*//' \
+    /etc/ssh/sshd_config \
+    && echo 'AllowUsers agent' >> /etc/ssh/sshd_config
+
+# Create Python venv and install Molecule toolchain
+ENV VIRTUAL_ENV=/opt/molecule-venv
+RUN python3 -m venv "$VIRTUAL_ENV"
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+RUN pip install --no-cache-dir \
+    ansible-core \
+    molecule \
+    'molecule-plugins[docker]'
+
+# Install community.general collection to a shared location (the default
+# installs to ~/.ansible which varies by user — use a fixed path instead).
+ENV ANSIBLE_COLLECTIONS_PATH=/opt/ansible-collections
+RUN mkdir -p "$ANSIBLE_COLLECTIONS_PATH" \
+    && ansible-galaxy collection install -p "$ANSIBLE_COLLECTIONS_PATH" community.general \
+    && chown -R agent:agent "$ANSIBLE_COLLECTIONS_PATH"
+
+# Make the venv and Ansible env available in ALL SSH sessions (including
+# non-interactive "ssh host command"). /etc/environment is read by PAM on
+# every SSH connection regardless of shell mode.
+RUN echo 'PATH=/opt/molecule-venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' >> /etc/environment \
+    && echo 'ANSIBLE_COLLECTIONS_PATH=/opt/ansible-collections' >> /etc/environment \
+    && sed -i 's/^#\?UsePAM .*/UsePAM yes/' /etc/ssh/sshd_config \
+    && sed -i 's/^#\?PermitUserEnvironment .*/PermitUserEnvironment yes/' /etc/ssh/sshd_config
+
+# Mark all repos under /workspace as git safe directories (bind-mounted, different owner)
+RUN git config --system --add safe.directory '*'
+
+COPY --chmod=755 entrypoint-test-runner.sh /usr/local/bin/entrypoint-test-runner.sh
+
+EXPOSE 22
+
+ENTRYPOINT ["/usr/local/bin/entrypoint-test-runner.sh"]

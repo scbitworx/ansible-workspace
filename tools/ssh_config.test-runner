@@ -1,0 +1,7 @@
+Host test-runner
+    HostName test-runner
+    User agent
+    IdentityFile ~/.ssh/id_ed25519
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    LogLevel ERROR
