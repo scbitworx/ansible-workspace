@@ -335,6 +335,9 @@ does not grant full access.
 - XDG `~/.config/` convention with symlinks for legacy tools.
 - Shell `conf.d/` drop-in pattern: `base` deploys `~/.config/bash/bashrc`
   with a sourcing loop; `dotfiles` drops fragments into `conf.d/`.
+- Login profile lives at `~/.config/profile` (not under `bash/`) because it
+  is sourced by display managers and POSIX shells — not just bash.
+  `~/.profile` symlinks to it.
 
 > For full dotfiles architecture, XDG conventions, symlink tables, detection
 > patterns, and file structure, see [docs/dotfiles.md](docs/dotfiles.md)
