@@ -82,6 +82,11 @@ RUN echo 'PATH=/opt/molecule-venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/
     && sed -i 's/^#\?UsePAM .*/UsePAM no/' /etc/ssh/sshd_config \
     && sed -i 's/^#\?PermitUserEnvironment .*/PermitUserEnvironment yes/' /etc/ssh/sshd_config
 
+# Allow ansible-lint's parent-directory walk to stat /root without crashing.
+# ansible-compat's search_galaxy_paths() walks up from cwd checking for
+# galaxy.yml in every parent; Alpine's default /root is mode 0700.
+RUN chmod 755 /root
+
 # Mark all repos under /workspace as git safe directories (bind-mounted, different owner)
 RUN git config --system --add safe.directory '*'
 
