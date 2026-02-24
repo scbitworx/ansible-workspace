@@ -11,11 +11,11 @@ Molecule.
 
 ## Project Status
 
-**Current Status**: Milestone 2 Complete
+**Current Status**: Milestone 3 Complete
 
-Milestones 1 and 2 are complete. The controller repo and scaffold role are
-live on GitHub with passing CI. The scaffold role serves as the reference
-template for all future roles.
+Milestones 1–3 are complete. The controller repo, scaffold role, and base
+role are live on GitHub with passing CI. The test-runner sidecar is
+operational — Molecule tests run from within Claude Code sessions via SSH.
 
 ---
 
@@ -293,6 +293,35 @@ Each file, package, and config resource is owned by **exactly one role**.
 > For Molecule configuration, Docker image details, `prepare.yml` patterns,
 > and precondition handling, see
 > [docs/molecule-testing.md](docs/molecule-testing.md)
+
+### Test-Runner Sidecar (Claude Code Sessions)
+
+Molecule requires Docker access to create test containers. The Claude Code
+container is hardened (cap-drop=ALL, read-only root, no-new-privileges) and
+does **not** have Docker socket access. A **test-runner sidecar** container
+handles Molecule execution instead.
+
+**How it works:** Claude Code SSHs into the test-runner to run Molecule.
+Both containers share the same `/workspace` bind mount, so file edits are
+immediately visible to Molecule.
+
+```bash
+# From inside Claude Code — run molecule tests for any role:
+ssh test-runner "cd /workspace/ansible-role-<name> && molecule test"
+
+# Fast iteration (keep containers between runs):
+ssh test-runner "cd /workspace/ansible-role-<name> && molecule converge"
+ssh test-runner "cd /workspace/ansible-role-<name> && molecule verify"
+ssh test-runner "cd /workspace/ansible-role-<name> && molecule destroy"
+```
+
+**Security model:** The test-runner has Docker access but zero credentials
+(no API keys, no GitHub tokens, no `~/.claude`). The Claude Code container
+has credentials but no Docker access. Compromise of either container alone
+does not grant full access.
+
+> For sidecar architecture, build instructions, and security details, see
+> [docs/workspace-setup.md](docs/workspace-setup.md#molecule-testing-test-runner-sidecar)
 
 ---
 

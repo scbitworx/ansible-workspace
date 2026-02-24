@@ -97,11 +97,18 @@ The `ansible.builtin.raw` module does not require Python on the target:
 - hosts: archlinux
   gather_facts: false
   tasks:
-    - name: Install Python and sudo (Arch)
-      ansible.builtin.raw: pacman -Syu --noconfirm python sudo
+    - name: Install Python, sudo, and openssh (Arch)
+      ansible.builtin.raw: pacman -Syu --noconfirm python sudo openssh
+
+    - name: Generate SSH host keys (Arch)
+      ansible.builtin.raw: ssh-keygen -A
+
+    - name: Start sshd (Arch)
+      ansible.builtin.raw: systemctl start sshd
 ```
 
-Debian/Ubuntu containers also need an apt cache update in `prepare.yml`:
+Debian/Ubuntu containers need an apt cache update, SSH preconditions, and
+locale support in `prepare.yml`:
 
 ```yaml
 - hosts: debian:ubuntu
@@ -111,7 +118,33 @@ Debian/Ubuntu containers also need an apt cache update in `prepare.yml`:
       ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 600
+
+    - name: Install prerequisite packages
+      ansible.builtin.apt:
+        name:
+          - locales
+          - openssh-server
+        state: present
+
+    - name: Create privilege separation directory
+      ansible.builtin.file:
+        path: /run/sshd
+        state: directory
+        mode: "0755"
+
+    - name: Start sshd (Debian/Ubuntu)
+      ansible.builtin.service:
+        name: ssh
+        state: started
 ```
+
+### Why start sshd in prepare.yml?
+
+Roles that deploy `/etc/ssh/sshd_config` with a `validate: sshd -t -f %s`
+step and a handler that restarts sshd need the service **already running**
+before converge. Without this, the handler fails because sshd was never
+started. Previously this was masked with `failed_when: false` on the
+handler — the correct fix is to start sshd in prepare.
 
 ---
 
@@ -144,6 +177,22 @@ files. This is deliberately minimal.
 
 **What does NOT belong in `prepare.yml`:** The entire parent role's task
 list. `prepare.yml` is a test fixture, not a role runner.
+
+---
+
+## Required Ansible Collections
+
+CI workflows and the test-runner sidecar must have these collections
+installed:
+
+| Collection          | Why                                              |
+| ------------------- | ------------------------------------------------ |
+| `community.general` | `pacman` module for Arch package management       |
+| `ansible.posix`     | `authorized_key` module for SSH key deployment    |
+
+```bash
+ansible-galaxy collection install community.general ansible.posix
+```
 
 ---
 
