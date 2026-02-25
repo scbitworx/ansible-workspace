@@ -15,7 +15,7 @@ privileged mode with cgroup mounts. The few things that truly cannot be tested
 in Docker (kernel module loading, real hardware interaction) are handled by
 the integration testing strategy (disposable virsh VMs — never production
 hosts — see
-[milestones.md](milestones.md#milestone-8-end-to-end-integration-testing-virsh-vms)).
+[milestones.md](milestones.md#milestone-9-full-integration-matrix-virsh-vms--all-distros)).
 
 ---
 
@@ -213,7 +213,7 @@ decryption pipeline is an orthogonal concern — it operates at the
 - The `/etc/shadow` entry contains the expected hash format
 - Omitted `password_hash` leaves the account locked
 
-**What virsh integration tests cover (Milestone 8):**
+**What virsh integration tests cover (Milestone 4+):**
 
 - Full vault decryption pipeline via `--vault-id`
 - Bootstrap with vault-encrypted inventory

@@ -129,8 +129,8 @@ exec /usr/bin/flock --nonblock "$LOCK_FILE" \
   timestamps.
 - **Parallel run inhibition:** `flock --nonblock` ensures only one
   `ansible-pull` process runs at a time.
-- **Consistent invocation:** Both cron jobs and manual runs use the same
-  script.
+- **Consistent invocation:** Both the systemd timer and manual runs use the
+  same script.
 
 **Why the controller owns the wrapper script, not a role:** The wrapper
 contains the controller repo URL, inventory path, and playbook name — values

@@ -395,11 +395,12 @@ does not grant full access.
 | 1 | Foundation                         | GitHub org + controller repo               |
 | 2 | Scaffold Role + Testing + CI/CD    | Walking skeleton to validate full pipeline |
 | 3 | Base Role                          | Core system configuration                  |
-| 4 | Server + Workstation Roles         | Group-level core roles                     |
-| 5 | Laptop Core Role                   | Laptop-specific core role                  |
-| 6 | Initial Extension Roles            | First extension roles to validate pattern  |
-| 7 | Dotfiles Role                      | Personal config with runtime detection     |
-| 8 | Integration Testing (virsh VMs)    | Full-stack validation with disposable VMs  |
+| 4 | Single-VM Integration (Arch)       | Validate controller pipeline end-to-end    |
+| 5 | Server + Workstation Roles         | Group-level core roles                     |
+| 6 | Laptop Core Role                   | Laptop-specific core role                  |
+| 7 | Initial Extension Roles            | First extension roles to validate pattern  |
+| 8 | Dotfiles Role                      | Personal config with runtime detection     |
+| 9 | Full Integration Matrix            | All distros, all profiles with disposable VMs |
 
 > For detailed task lists, deliverables, and exit criteria for each
 > milestone, see [docs/milestones.md](docs/milestones.md)

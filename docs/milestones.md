@@ -7,15 +7,25 @@ for each implementation milestone.
 
 ## Milestone Ordering Rationale
 
-The milestones are ordered to **validate the testing pipeline before building
-real roles**. Milestone 2 creates a trivial scaffold role whose only purpose
-is to exercise every part of the toolchain end-to-end: Molecule with all
-three Docker images, `ansible-lint`, `yamllint`, the `first_found` +
-`include_vars` pattern, Galaxy metadata, the controller's `requirements.yml`
-installation, `local.yml` execution, and CI/CD via GitHub Actions.
+The milestones are ordered to **validate each testing pipeline before building
+on top of it**.
 
-CI/CD is part of Milestone 2, not a late-stage addition. The scaffold role
-also serves as a **reference template** for creating new roles.
+Milestone 2 creates a trivial scaffold role whose only purpose is to exercise
+every part of the unit-testing toolchain end-to-end: Molecule with all three
+Docker images, `ansible-lint`, `yamllint`, the `first_found` + `include_vars`
+pattern, Galaxy metadata, the controller's `requirements.yml` installation,
+`local.yml` execution, and CI/CD via GitHub Actions. CI/CD is part of
+Milestone 2, not a late-stage addition. The scaffold role also serves as a
+**reference template** for creating new roles.
+
+Milestone 4 applies the same principle to integration testing. Before building
+additional roles, a single disposable Arch Linux VM validates the controller
+pipeline end-to-end: `bootstrap.sh`, the `ansible-pull` wrapper, vault
+decryption, role installation via `requirements.yml`, and the systemd timer.
+This ensures the foundation is solid before more roles are layered on top.
+
+The full multi-distro, multi-profile integration matrix (Milestone 9) is
+deferred until enough roles exist to make cross-profile testing meaningful.
 
 ---
 
@@ -161,42 +171,66 @@ target distributions.
     - Sudo re-exec in the wrapper for admin user invocation
 14. Update `ansible.cfg` with `vault_identity_list`.
 15. Molecule tests for password_hash (plaintext hashes; full vault pipeline
-    deferred to Milestone 8).
+    deferred to Milestone 4).
 
 **Deliverables:** A fully tested `base` role for Arch, Ubuntu, and Debian,
 with optional password management and vault integration in the controller.
 
 ---
 
-## Milestone 4: Server and Workstation Roles
+## Milestone 4: Single-VM Integration Testing (Arch Linux)
 
-**Goal:** Create `server` and `workstation` standalone roles, and extend the
-`base` role with automated convergence and unattended security upgrades.
+**Goal:** Validate the controller pipeline end-to-end on a single disposable
+Arch Linux libvirt VM, using only the base role.
 
-### Base Role Enhancements
+**Why now:** Milestones 2 and 3 validated the unit-testing pipeline (Molecule,
+linting, CI). This milestone validates the integration pipeline (bootstrap,
+ansible-pull wrapper, vault, role installation, systemd timer) before any
+additional roles are built on top of it. If something is broken in the
+controller pipeline, it's better to find out now than after building five
+more roles.
 
-The following features apply to all managed hosts and belong in the `base`
-role rather than being duplicated across server and workstation:
+> **IMPORTANT:** Integration tests run against a **disposable libvirt VM**,
+> never against production machines (`ceres`, `mars`, `jupiter`). The VM is
+> created from a minimal base image, reverted to a clean snapshot between
+> runs, and can be destroyed at any time.
 
-1. **`ansible-pull` scheduling (systemd timer):**
-   - Deploy a systemd timer that runs the `ansible-pull` wrapper periodically.
-   - Default interval via `base_pull_interval` variable (overridable in
-     `group_vars/` — e.g., hourly for servers, twice daily for workstations).
-   - Use `Persistent=true` so laptops that sleep catch up on wake.
-   - Safe on Arch because ansible-pull uses `state: present` (no partial
-     upgrades — see [architecture.md](architecture.md#package-state-and-arch-linux-partial-upgrades)).
+**Scope:**
 
-2. **Unattended security upgrades (Debian/Ubuntu only):**
-   - Install and configure the `unattended-upgrades` package.
-   - Distro conditional — no-op on Arch Linux (unattended upgrades are
-     unsafe on rolling-release distributions).
-   - Configurable via `base_unattended_upgrades` boolean (default: `true`
-     on Debian/Ubuntu).
+- Single VM: `test-archlinux` (Arch Linux)
+- Single role: `base` only
+- Validates: `bootstrap.sh`, `ansible-pull-wrapper`, vault client
+  (`pass`+GPG), role installation via `requirements.yml`, systemd timer,
+  idempotency
 
-3. Molecule tests for both features.
-4. Tag new base version and update controller `requirements.yml`.
+**Tasks:**
 
-### Server and Workstation Roles
+1. Write `scripts/integration/create-base-vms.sh` (single Arch VM for now).
+2. Write `scripts/integration/run-integration-test.sh`
+   (revert → bootstrap → verify → idempotency).
+3. Write `scripts/integration/verify-state.sh` (post-converge assertions
+   via SSH — base role functionality only).
+4. Run the full cycle on the disposable Arch VM.
+5. Verify idempotency (second run produces no changes).
+6. Document the integration testing workflow in controller `README.md`.
+
+**Deliverables:** A working, repeatable integration test pipeline for a
+single Arch Linux VM with the base role.
+
+**Exit criteria:**
+
+- `bootstrap.sh` successfully installs Ansible and runs the initial pull
+- `ansible-pull-wrapper` completes a full converge
+- Vault-encrypted variables are decrypted correctly
+- The systemd timer is active and enabled
+- A second run is idempotent
+- The VM can be destroyed and recreated from the clean snapshot
+
+---
+
+## Milestone 5: Server and Workstation Roles
+
+**Goal:** Create `server` and `workstation` standalone roles.
 
 **Tasks:**
 
@@ -224,7 +258,7 @@ layers.
 
 ---
 
-## Milestone 5: Laptop Core Role
+## Milestone 6: Laptop Core Role
 
 **Goal:** Create the `laptop` standalone core role.
 
@@ -247,7 +281,7 @@ layers.
 
 ---
 
-## Milestone 6: Initial Extension Roles
+## Milestone 7: Initial Extension Roles
 
 **Goal:** Create the first set of extension roles to validate the pattern.
 
@@ -276,7 +310,7 @@ layers.
 
 ---
 
-## Milestone 7: Dotfiles Role
+## Milestone 8: Dotfiles Role
 
 **Goal:** Create the `dotfiles` role with runtime package detection and XDG
 `~/.config/` convention.
@@ -300,14 +334,15 @@ layers.
 
 ---
 
-## Milestone 8: End-to-End Integration Testing (virsh VMs)
+## Milestone 9: Full Integration Matrix (virsh VMs — All Distros)
 
-**Goal:** Validate full stack from `bootstrap.sh` through `ansible-pull` and
-role composition using disposable libvirt VMs.
+**Goal:** Extend the single-VM integration pipeline (Milestone 4) to cover
+all three distributions and all host profiles with full role composition.
 
-**Why this exists alongside Molecule:** Molecule with Docker is unit testing.
-Integration testing with VMs tests the full pipeline, role composition,
-bootstrap flow, and covers kernel modules / hardware-specific gaps.
+**Why this is separate from Milestone 4:** Milestone 4 established the
+integration pipeline with a single Arch VM and the base role only. Now that
+all roles are implemented and unit-tested, this milestone adds Ubuntu and
+Debian VMs and tests the full role stacks that model each production host.
 
 > **IMPORTANT:** Integration tests run against **disposable libvirt VMs**,
 > never against production machines (`ceres`, `mars`, `jupiter`). The VMs are
