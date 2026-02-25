@@ -10,7 +10,7 @@ Linux libvirt VM, using only the base role.
 - [ ] `bootstrap.sh` successfully installs Ansible and runs the initial pull
 - [ ] `ansible-pull-wrapper` completes a full converge
 - [ ] Vault-encrypted variables are decrypted correctly
-- [ ] The systemd timer is active and enabled
+- [ ] The `systemd` timer is active and enabled
 - [ ] A second run is idempotent
 - [ ] The VM can be destroyed and recreated from the clean snapshot
 
@@ -18,67 +18,165 @@ Linux libvirt VM, using only the base role.
 
 ## Tasks
 
-### 1. Design integration test approach
-- [ ] Determine VM creation strategy (virt-install CLI vs. kickstart vs. cloud image)
-- [ ] Decide on network config (NAT, bridge, SSH access method)
-- [ ] Decide on snapshot strategy (virsh snapshot-create-as)
-- [ ] Determine how vault/pass/GPG will be set up on the test VM
-- [ ] Document decisions below in "Design Decisions" section
+### 1. Design Integration Test Approach
+
+- [x] Determine VM creation strategy — **Arch cloud image**
+- [x] Decide on network config — **Default NAT (virbr0)**
+- [x] Decide on snapshot strategy — **virsh snapshot-create-as**
+- [x] Determine how vault/pass/GPG will be set up — **Pre-bootstrap script**
+- [x] Document decisions below in "Design Decisions" section
 
 ### 2. Write `scripts/integration/create-base-vms.sh`
-- [ ] Create a single Arch Linux VM (`test-archlinux`)
-- [ ] Minimal install — just enough to run `bootstrap.sh`
-- [ ] Take a `clean` snapshot after initial setup
-- [ ] Script should be idempotent (safe to re-run)
+
+- [ ] Generate test SSH keypair in `testdata/` (if not present)
+- [ ] Download Arch cloud image (if not cached)
+- [ ] Create cloud-init seed ISO (meta-data + user-data with test SSH key)
+- [ ] Copy cloud image, resize disk to 10G
+- [ ] Create VM via `virt-install --import` on default NAT network
+- [ ] Wait for cloud-init to finish and VM to be SSH-accessible
+- [ ] Take `clean` snapshot via `virsh snapshot-create-as`
+- [ ] Script should be idempotent (destroy existing VM if present)
+
+### 2a. Create test GPG key and vault password in `testdata/`
+
+- [ ] Generate a test-only GPG key (no passphrase, committed to repo)
+- [ ] Store test vault password in `testdata/vault-password.txt`
+- [ ] Add `testdata/id_ed25519` to `.gitignore` (or generate deterministically)
 
 ### 3. Write `scripts/integration/run-integration-test.sh`
+
 - [ ] Revert VM to `clean` snapshot
 - [ ] Start VM and wait for SSH
-- [ ] Copy/run `bootstrap.sh`
+- [ ] Run pre-bootstrap setup (install pass/gpg, import test GPG key,
+      init pass store, insert test vault password)
+- [ ] Copy and run `bootstrap.sh`
 - [ ] Verify converge succeeded (exit code)
 - [ ] Run `ansible-pull-wrapper` a second time for idempotency check
 - [ ] Call `verify-state.sh`
-- [ ] Report pass/fail
+- [ ] Report pass/fail summary
 
 ### 4. Write `scripts/integration/verify-state.sh`
+
 - [ ] SSH into VM and assert base role state:
   - Admin user exists with correct groups/shell
   - SSH hardening applied (sshd_config settings)
   - Timezone and locale set
   - Base packages installed
-  - ansible-pull.timer active and enabled
-  - ansible-pull.service unit exists
+  - `ansible-pull.timer` active and enabled
+  - `ansible-pull.service` unit exists
   - Vault-encrypted variables decrypted correctly (e.g., password_hash)
   - Unattended-upgrades NOT installed (Arch — no-op expected)
 
-### 5. Run the full cycle
+### 5. Run the Full Cycle
+
 - [ ] Execute the scripts on the host workstation
 - [ ] Fix any issues discovered
 - [ ] Confirm all exit criteria pass
 
-### 6. Document in controller README
+### 6. Document in Controller README
+
 - [ ] Add integration testing section to `ansible-controller/README.md`
-- [ ] Document prerequisites (libvirt, virsh, Arch ISO or cloud image)
+- [ ] Document prerequisites (libvirt, qemu, virt-install, cdrtools)
 - [ ] Document usage (`create-base-vms.sh`, `run-integration-test.sh`)
 
 ---
 
 ## Design Decisions
 
-*(Record decisions made during implementation here)*
+### VM Creation: Arch Cloud Image
+
+Use the official Arch Linux cloud image (`Arch-Linux-x86_64-cloudimg.qcow2`)
+from `geo.mirror.pkgbuild.com/images/`. Boot directly with `virt-install
+--import` — no interactive installer needed.
+
+cloud-init handles first-boot config (SSH key, hostname) via a seed ISO
+created with `genisoimage`. The seed ISO contains two files:
+
+- `meta-data` — hostname, instance ID
+- `user-data` — root SSH key (for test harness access)
+
+cloud-init is a local-only tool here — no cloud provider integration.
+
+**Host prerequisites:** `libvirt`, `qemu`, `virt-install`, `genisoimage`
+(Arch package: `cdrtools`).
+
+### Network: Default NAT (virbr0)
+
+Use libvirt's default NAT network. VM gets a DHCP address discovered
+programmatically via `virsh domifaddr`. No host network changes required.
+
+### Snapshots: virsh snapshot-create-as
+
+After cloud-init completes first boot, take a named `clean` snapshot.
+`run-integration-test.sh` reverts to this snapshot before each test run.
+
+`create-base-vms.sh` handles the case where the VM already exists by
+destroying and recreating it (idempotent).
+
+### Vault/Pass/GPG: Pre-bootstrap Script
+
+`run-integration-test.sh` SSHs into the VM after revert and runs a setup
+step before `bootstrap.sh`:
+
+1. Install `pass` and `gnupg`
+2. Import a test-only GPG key (committed to the repo — protects nothing real)
+3. Initialize the pass store: `pass init <test-gpg-key-id>`
+4. Insert the test vault password: `pass insert scbitworx/vault-password`
+
+This mirrors the real operator workflow and keeps the cloud-init config
+minimal. The test GPG key and vault password are stored in
+`scripts/integration/testdata/`.
+
+### Test SSH Key
+
+A dedicated test-only SSH keypair is generated by `create-base-vms.sh` and
+stored in `scripts/integration/testdata/`. This key is injected via
+cloud-init and used by all integration scripts to SSH into the VM.
+
+### Controller Cleanup
+
+Removed placeholder role entries from `requirements.yml` and `local.yml` —
+only roles with existing repos and tags are listed. Future plays are
+commented out in `local.yml` as a reference. This was required because
+`ansible-galaxy install` would fail on non-existent repos.
+
+### Test Inventory
+
+Separate `inventory/test-hosts.yml` with `test-archlinux` host. Keeps test
+infrastructure out of the production inventory. `host_vars/test-archlinux.yml`
+overrides `base_admin_users` with a test user and vault-encrypted password.
+
+### Bootstrap Flexibility
+
+`bootstrap.sh` accepts `-i <inventory_path>` flag (defaults to
+`inventory/hosts.yml`). Integration tests pass `-i inventory/test-hosts.yml`.
+
+### Wrapper Template
+
+`ansible-pull-wrapper.sh.j2` uses `{{ controller_inventory | default('inventory/hosts.yml') }}`
+so the test host's wrapper points at the test inventory. Production hosts
+are unaffected (default value).
 
 ---
 
 ## Blockers / Open Questions
 
-*(Track anything that blocks progress or needs user input)*
-
-- Where will these scripts run? They require libvirt on the host — not
-  available in the Claude Code container. Scripts will be written here but
-  executed by the user on a workstation.
+- Scripts require libvirt on the host — not available in the Claude Code
+  container. Scripts are written here but executed by the user on a
+  workstation.
+- The test GPG key must be generated once via `generate-test-gpg-key.sh`
+  before first use. It needs to be committed to the repo.
+- After the GPG key is generated, the vault-encrypted `password_hash` in
+  `host_vars/test-archlinux.yml` was pre-encrypted with the known test
+  vault password (`test-vault-password-do-not-use`).
 
 ---
 
 ## Progress Log
 
-*(Brief notes on what was done each session)*
+- **Session 1:** Implemented ansible-pull timer + unattended-upgrades in
+  base role (v0.15.0). Updated docs for production safety (disposable VMs
+  only). Reordered milestones (integration testing → M4, before new roles).
+  Established active-milestone workflow. Designed integration test approach.
+  Wrote all integration scripts, cleaned up controller placeholders, created
+  test inventory and host_vars.

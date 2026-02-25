@@ -24,9 +24,9 @@ Milestone 4 (single-VM integration testing with Arch Linux) is in progress.
 ## Active Milestone Workflow
 
 Each milestone has a working document at **`active-milestone.md`** in the
-workspace root. This file tracks the current milestone's granular progress:
-tasks, subtasks, decisions made during implementation, blockers, and
-iteration notes.
+`/workspace/ansible-workspace/`. This file tracks the current milestone's
+granular progress: tasks, subtasks, decisions made during implementation,
+blockers, and iteration notes.
 
 - **`docs/milestones.md`** is the stable reference — milestone goals,
   deliverables, and exit criteria. It does not change during implementation.
