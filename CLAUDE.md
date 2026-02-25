@@ -248,9 +248,18 @@ Each role uses `first_found` + `include_vars` for distro-specific variables
 and `ansible.builtin.package` for package manager abstraction. Most roles
 need only `Archlinux.yml`, `Debian.yml`, and `main.yml`.
 
+**Arch Linux package constraint:** All roles must use `state: present`, never
+`state: latest`. On Arch, upgrading a single package without a full system
+upgrade (`pacman -Syu`) is a partial upgrade that can cause shared library
+mismatches. `state: present` is safe — it only installs missing packages.
+Unattended full system upgrades on Arch are unsafe and are not performed.
+
 > For the full `first_found` pattern, cascading specificity details, and
 > rationale for per-role distro handling, see
 > [docs/distro-compatibility.md](docs/distro-compatibility.md)
+>
+> For detailed Arch partial upgrade rationale, see
+> [docs/architecture.md](docs/architecture.md#package-state-and-arch-linux-partial-upgrades)
 
 ---
 
@@ -279,7 +288,8 @@ Each file, package, and config resource is owned by **exactly one role**.
 | Service-specific packages    | Extension role     | `syncthing_server` owns syncthing |
 | `ansible-pull` wrapper       | Controller `pre_tasks` | `/usr/local/bin/ansible-pull-wrapper` |
 | Vault scripts                | Controller `pre_tasks` | `/usr/local/bin/ansible-vault-client` |
-| Cron scheduling              | `server` role      | `ansible.builtin.cron`     |
+| `ansible-pull` scheduling    | `base`             | Systemd timer (interval overridable via group_vars) |
+| Unattended security upgrades | `base`             | `unattended-upgrades` on Debian/Ubuntu; no-op on Arch |
 | User-level personal config   | `dotfiles`         | `~/.config/git/config`     |
 
 ---
@@ -415,6 +425,9 @@ does not grant full access.
 | Dotfiles               | Single role + runtime detection | Decoupled from infra roles              |
 | Shell config           | `conf.d/` drop-ins        | No file conflicts between roles                  |
 | Secrets backend        | `pass` + GPG              | No service deps, offline, hardware key support   |
+| Package state          | `state: present` only     | Avoids Arch partial upgrades; consistent across distros |
+| `ansible-pull` schedule | `base` role (systemd timer) | All hosts converge; interval overridable via group_vars |
+| Unattended upgrades    | `base` role (Debian/Ubuntu only) | No-op on Arch; unsafe on rolling release    |
 
 ---
 

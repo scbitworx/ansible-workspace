@@ -65,7 +65,8 @@ ensures there is only one place to change any given piece of configuration.
 | System-level config for a core concern | The core role that installs it | `server` owns `/etc/ssh/sshd_config` |
 | Service-specific packages and config | The extension role for that service | `syncthing_server` owns syncthing package and `/etc/syncthing/` |
 | `ansible-pull` wrapper script | Controller repo (`local.yml` `pre_tasks`) | `/usr/local/bin/ansible-pull-wrapper` |
-| Cron scheduling for `ansible-pull` | `server` role | `ansible.builtin.cron` calling the wrapper by path |
+| `ansible-pull` scheduling | `base` role | Systemd timer (interval overridable via group_vars) |
+| Unattended security upgrades | `base` role | `unattended-upgrades` on Debian/Ubuntu; no-op on Arch |
 | User-level personal config | `dotfiles` | `dotfiles` owns `~/.config/git/config` |
 
 **How this handles overlapping requirements:** If both `devbox` and `dotfiles`
@@ -77,6 +78,66 @@ between layers, there is exactly one variable to change.
 For packages unique to a single extension role (e.g., syncthing, wacom
 drivers), the extension role owns both installation and configuration. No
 other role touches them.
+
+---
+
+## Package State and Arch Linux Partial Upgrades
+
+All roles in this project **must** use `state: present` when installing
+packages via `ansible.builtin.package`. Never use `state: latest`.
+
+### Why This Matters on Arch Linux
+
+Arch Linux is a rolling-release distribution with a single package repository
+that moves forward as a unit. Installing or upgrading an individual package
+without first running a full system upgrade (`pacman -Syu`) is called a
+**partial upgrade** — an explicitly unsupported configuration.
+
+A partial upgrade can cause:
+
+- **Shared library mismatches:** A newly installed package links against a
+  newer `libfoo.so.X` that older, un-upgraded packages don't have.
+- **Dependency breakage:** The new package depends on a version of another
+  package that hasn't been upgraded yet.
+- **Subtle runtime failures:** The system appears functional but specific
+  tools crash or behave incorrectly.
+
+### How `state: present` Avoids This
+
+`state: present` tells the package manager: "ensure this package is
+installed; if it already is, do nothing." On Arch, this translates to
+`pacman -S --needed`, which skips already-installed packages entirely. It
+only installs genuinely missing packages, and those are installed at the
+current repo version — which is safe because they have no prior version on
+the system to conflict with.
+
+`state: latest` would force `pacman -S <package>` unconditionally, upgrading
+a single package without its dependency tree — exactly the partial upgrade
+scenario Arch warns against.
+
+### Why Not Run `pacman -Syu` as a Task?
+
+Unattended full system upgrades on Arch are unsafe. Updates frequently
+require manual intervention: config file merge prompts, manual steps noted in
+Arch news, or kernel updates that need a reboot before the system is
+consistent. The project handles Arch system upgrades as a manual operator
+action, not an automated one.
+
+### Impact on `ansible-pull`
+
+Periodic `ansible-pull` runs are safe on Arch under this constraint. The
+provisioner applies declared configuration idempotently using
+`state: present`. It does not upgrade the distribution. New packages added to
+a role's package list are the only case where a package is actually
+installed, and this carries minimal risk because the package has no prior
+version on the system.
+
+### Debian and Ubuntu
+
+On Debian and Ubuntu, `state: present` is equally correct and avoids
+uncontrolled version drift. Unattended security patches are handled
+separately by the `unattended-upgrades` package, which the `base` role
+configures on these distributions.
 
 ---
 

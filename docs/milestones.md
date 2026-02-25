@@ -170,7 +170,33 @@ with optional password management and vault integration in the controller.
 
 ## Milestone 4: Server and Workstation Roles
 
-**Goal:** Create `server` and `workstation` standalone roles.
+**Goal:** Create `server` and `workstation` standalone roles, and extend the
+`base` role with automated convergence and unattended security upgrades.
+
+### Base Role Enhancements
+
+The following features apply to all managed hosts and belong in the `base`
+role rather than being duplicated across server and workstation:
+
+1. **`ansible-pull` scheduling (systemd timer):**
+   - Deploy a systemd timer that runs the `ansible-pull` wrapper periodically.
+   - Default interval via `base_pull_interval` variable (overridable in
+     `group_vars/` — e.g., hourly for servers, twice daily for workstations).
+   - Use `Persistent=true` so laptops that sleep catch up on wake.
+   - Safe on Arch because ansible-pull uses `state: present` (no partial
+     upgrades — see [architecture.md](architecture.md#package-state-and-arch-linux-partial-upgrades)).
+
+2. **Unattended security upgrades (Debian/Ubuntu only):**
+   - Install and configure the `unattended-upgrades` package.
+   - Distro conditional — no-op on Arch Linux (unattended upgrades are
+     unsafe on rolling-release distributions).
+   - Configurable via `base_unattended_upgrades` boolean (default: `true`
+     on Debian/Ubuntu).
+
+3. Molecule tests for both features.
+4. Tag new base version and update controller `requirements.yml`.
+
+### Server and Workstation Roles
 
 **Tasks:**
 
@@ -180,7 +206,6 @@ with optional password management and vault integration in the controller.
    - Server security hardening (SSH config, fail2ban, firewall)
    - Server-specific packages
    - Monitoring/logging baseline
-   - Cron job for periodic `ansible-pull`
 4. Implement `workstation` role tasks:
    - Display manager / desktop environment packages
    - Audio subsystem
@@ -191,6 +216,8 @@ with optional password management and vault integration in the controller.
 7. Test all three platforms.
 8. Tag both repos `v0.1.0`.
 9. Update controller `requirements.yml`.
+10. Set `ansible-pull` timer interval overrides in `group_vars/servers.yml`
+    and `group_vars/workstations.yml`.
 
 **Deliverables:** Two tested standalone roles for server and workstation
 layers.
