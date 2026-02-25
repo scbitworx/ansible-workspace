@@ -303,13 +303,19 @@ layers.
 ## Milestone 8: End-to-End Integration Testing (virsh VMs)
 
 **Goal:** Validate full stack from `bootstrap.sh` through `ansible-pull` and
-role composition using libvirt VMs.
+role composition using disposable libvirt VMs.
 
 **Why this exists alongside Molecule:** Molecule with Docker is unit testing.
 Integration testing with VMs tests the full pipeline, role composition,
 bootstrap flow, and covers kernel modules / hardware-specific gaps.
 
-**Base VM images:**
+> **IMPORTANT:** Integration tests run against **disposable libvirt VMs**,
+> never against production machines (`ceres`, `mars`, `jupiter`). The VMs are
+> created from minimal base images, reverted to clean snapshots between runs,
+> and can be destroyed at any time. Production hosts must not be targeted
+> until all roles are fully unit-tested and integration-tested.
+
+**Base VM images (disposable test VMs):**
 
 - `test-archlinux`
 - `test-ubuntu2404`
@@ -317,26 +323,31 @@ bootstrap flow, and covers kernel modules / hardware-specific gaps.
 
 **Scripts:**
 
-- `create-base-vms.sh` — builds minimal VMs, takes `clean` snapshots
+- `create-base-vms.sh` — builds minimal test VMs, takes `clean` snapshots
 - `run-integration-test.sh` — revert → bootstrap → verify → idempotency
 - `verify-state.sh` — post-converge assertions via SSH
 
-**Host profiles to test:**
+**Host profiles to test (on disposable VMs, not production machines):**
 
-| Profile              | Simulates | Role stack                                        |
-|----------------------|-----------|---------------------------------------------------|
-| Server               | jupiter   | base → server → extensions → dotfiles             |
-| Workstation + laptop | ceres     | base → workstation → laptop → extensions → dotfiles |
-| Workstation          | mars      | base → workstation → extensions → dotfiles        |
+Each profile simulates the role stack that would eventually run on a
+production host. The test VM receives the same group memberships and
+`host_vars` as the production host it models, but it is a separate,
+disposable libvirt VM.
+
+| Profile              | Models role stack for | Role stack                                        |
+|----------------------|-----------------------|---------------------------------------------------|
+| Server               | jupiter               | base → server → extensions → dotfiles             |
+| Workstation + laptop | ceres                 | base → workstation → laptop → extensions → dotfiles |
+| Workstation          | mars                  | base → workstation → extensions → dotfiles        |
 
 **Tasks:**
 
 1. Write `create-base-vms.sh`.
 2. Write `run-integration-test.sh`.
 3. Write `verify-state.sh`.
-4. Test server profile (jupiter).
-5. Test workstation + laptop profile (ceres).
-6. Test workstation profile (mars).
+4. Test server profile (models jupiter's role stack).
+5. Test workstation + laptop profile (models ceres's role stack).
+6. Test workstation profile (models mars's role stack).
 7. Verify idempotency for each profile.
 8. Document the workflow in controller `README.md`.
 

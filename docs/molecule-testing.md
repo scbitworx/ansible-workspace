@@ -13,7 +13,8 @@ This is the same approach used by Jeff Geerling and Robert de Bock.
 Systemd-dependent roles are tested in Docker by running containers in
 privileged mode with cgroup mounts. The few things that truly cannot be tested
 in Docker (kernel module loading, real hardware interaction) are handled by
-the integration testing strategy (virsh VMs, see
+the integration testing strategy (disposable virsh VMs — never production
+hosts — see
 [milestones.md](milestones.md#milestone-8-end-to-end-integration-testing-virsh-vms)).
 
 ---

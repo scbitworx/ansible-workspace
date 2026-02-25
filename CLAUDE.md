@@ -327,8 +327,10 @@ Helper scripts deployed by the controller to `/usr/local/bin/`:
   Python and sudo. No third-party dependency.
 - **Ubuntu/Debian images:** `geerlingguy/docker-ubuntu2404-ansible`,
   `geerlingguy/docker-debian12-ansible`
-- **Integration testing:** virsh VMs with snapshot-revert for full-stack
-  validation (bootstrap through `ansible-pull`).
+- **Integration testing:** Disposable virsh VMs with snapshot-revert for
+  full-stack validation (bootstrap through `ansible-pull`). **Never run
+  against production hosts** (`ceres`, `mars`, `jupiter`) — only against
+  temporary libvirt VMs that model their role stacks.
 
 > For Molecule configuration, Docker image details, `prepare.yml` patterns,
 > and precondition handling, see
@@ -397,7 +399,7 @@ does not grant full access.
 | 5 | Laptop Core Role                   | Laptop-specific core role                  |
 | 6 | Initial Extension Roles            | First extension roles to validate pattern  |
 | 7 | Dotfiles Role                      | Personal config with runtime detection     |
-| 8 | Integration Testing (virsh VMs)    | Full-stack validation with real VMs        |
+| 8 | Integration Testing (virsh VMs)    | Full-stack validation with disposable VMs  |
 
 > For detailed task lists, deliverables, and exit criteria for each
 > milestone, see [docs/milestones.md](docs/milestones.md)
@@ -421,7 +423,7 @@ does not grant full access.
 | Distro compatibility   | Per-role `first_found` + `include_vars` | Cascading specificity; graceful fallback |
 | Entry point            | `ansible-pull`            | Self-contained, no control node needed           |
 | Testing (unit)         | Molecule + Docker         | Community standard; seconds to spin up           |
-| Testing (integration)  | virsh VMs                 | Full kernel, real systemd, real package manager  |
+| Testing (integration)  | Disposable virsh VMs      | Full kernel, real systemd, real package manager  |
 | Dotfiles               | Single role + runtime detection | Decoupled from infra roles              |
 | Shell config           | `conf.d/` drop-ins        | No file conflicts between roles                  |
 | Secrets backend        | `pass` + GPG              | No service deps, offline, hardware key support   |

@@ -157,28 +157,29 @@ fetched when `ansible-pull` has already determined that a converge is needed.
 
 ## Scheduling Policy
 
-All hosts currently run Arch Linux. Until `jupiter` is migrated to a
-stable-release distribution, all hosts use manual invocation only.
+The `base` role deploys a systemd timer (`ansible-pull.timer`) that runs the
+wrapper script periodically on all hosts. The default interval is
+configurable via `base_pull_interval` (default: `4h`) and overridable in
+`group_vars/` — e.g., more frequent for servers, less frequent for
+workstations.
 
-- **All hosts (currently Arch Linux):** manual invocation only. Arch's rolling
-  release can require manual intervention, so unattended updates are unsafe.
-- **Future (stable-release servers):** the `server` role will use
-  `ansible.builtin.cron` to schedule periodic runs.
+- **Timer ownership:** The `base` role owns the timer. It runs on all hosts.
+- **`Persistent=true`:** Ensures laptops that sleep catch up on wake.
+- **`RandomizedDelaySec=5min`:** Spreads load when multiple hosts converge.
+- **Safe on Arch:** `ansible-pull` only installs packages with
+  `state: present` (no partial upgrades).
+- **Toggleable:** Set `base_pull_timer_enabled: false` to disable.
 
-**Why cron, not systemd timers:** Cron is available on virtually all Unix
-systems, and `ansible.builtin.cron` provides a single declarative task with
-built-in idempotency. No need to template `.service` + `.timer` files.
+```ini
+# ansible-pull.timer (deployed by base role)
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec={{ base_pull_interval }}
+Persistent=true
+RandomizedDelaySec=5min
 
-**Cron job ownership:** The cron job is owned by the `server` role, not the
-controller repo. The cron job calls the wrapper script by path.
-
-```yaml
-- name: Schedule ansible-pull via cron
-  ansible.builtin.cron:
-    name: "ansible-pull"
-    minute: "*/30"
-    job: "/usr/local/bin/ansible-pull-wrapper"
-    user: root
+[Install]
+WantedBy=timers.target
 ```
 
 ---
