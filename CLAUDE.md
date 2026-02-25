@@ -11,11 +11,33 @@ Molecule.
 
 ## Project Status
 
-**Current Status**: Milestone 3 Complete
+**Current Status**: Milestone 4 In Progress
 
 Milestones 1–3 are complete. The controller repo, scaffold role, and base
 role are live on GitHub with passing CI. The test-runner sidecar is
 operational — Molecule tests run from within Claude Code sessions via SSH.
+
+Milestone 4 (single-VM integration testing with Arch Linux) is in progress.
+
+---
+
+## Active Milestone Workflow
+
+Each milestone has a working document at **`active-milestone.md`** in the
+workspace root. This file tracks the current milestone's granular progress:
+tasks, subtasks, decisions made during implementation, blockers, and
+iteration notes.
+
+- **`docs/milestones.md`** is the stable reference — milestone goals,
+  deliverables, and exit criteria. It does not change during implementation.
+- **`active-milestone.md`** is the working document — granular task
+  tracking that survives across Claude Code sessions. It is overwritten
+  when a new milestone begins.
+- At the start of each new Claude Code session, read `active-milestone.md`
+  to understand where work left off.
+- When a milestone is complete, delete `active-milestone.md` (or overwrite
+  it with the next milestone's content), update `docs/milestones.md` status
+  if needed, and update the Project Status section above.
 
 ---
 
@@ -476,6 +498,7 @@ scbitworx/
 
 ## Detailed Reference Documentation
 
+- [active-milestone.md](active-milestone.md) — **Read this first** — current milestone granular task tracking
 - [docs/architecture.md](docs/architecture.md) — Architecture rationale, role composition, resource ownership, version pinning
 - [docs/naming-rationale.md](docs/naming-rationale.md) — Why underscores, community precedents, variable conventions
 - [docs/ansible-pull.md](docs/ansible-pull.md) — Playbook structure, wrapper script, bootstrap, scheduling
