@@ -155,6 +155,56 @@ that this manual workflow is the standard practice.
 
 ---
 
+## Secrets Management
+
+Vault-encrypted variables (user passwords, API keys, etc.) are stored in the
+inventory and decrypted at runtime via `--vault-id`. The vault password is
+retrieved from `pass` (password-store), backed by GPG.
+
+### Vault Password Backend
+
+| Component | Choice | Rationale |
+|-----------|--------|-----------|
+| Backend | `pass` (password-store) | No service dependencies, offline-capable, GPG-backed |
+| Encryption | GPG keys (optionally hardware-backed) | Standard, well-audited, supports smartcards |
+| Vault ID | `scbitworx` (single ID) | Single maintainer — no need for multiple vault IDs |
+
+### Pass Store Layout
+
+```text
+scbitworx/
+  vault-password          # The Ansible Vault master password
+```
+
+### How It Works
+
+1. `ansible-pull` (via the wrapper) passes `--vault-id scbitworx@/usr/local/bin/ansible-vault-client`
+2. The vault client script calls `pass scbitworx/vault-password`
+3. `pass` decrypts via GPG and returns the password on stdout
+4. Ansible uses it to decrypt any `!vault`-tagged values in the inventory
+
+### Resource Ownership
+
+| Resource | Owner |
+|----------|-------|
+| Vault client script (`ansible-vault-client`) | Controller `pre_tasks` |
+| Helper scripts (`ansible-vault-secret`, `ansible-vault-reveal`, `ansible-mkpasswd`) | Controller `pre_tasks` |
+| Vault-encrypted variable values | Inventory (`group_vars/`, `host_vars/`) |
+| Pass store and GPG keys | Operator (manual setup) |
+
+### Why `pass` + GPG
+
+- **No service dependencies:** Unlike HashiCorp Vault or cloud KMS, `pass` is
+  a local tool with no daemon, no network, and no account.
+- **Offline-capable:** Works on airgapped systems.
+- **GPG key flexibility:** Keys can live on a YubiKey or other hardware token
+  for physical security.
+- **Single maintainer:** For a personal infrastructure project, `pass` is the
+  right level of complexity. If the project grows to multiple maintainers,
+  migration to a shared secret store is straightforward.
+
+---
+
 ## Groups and Host Variables
 
 **How groups and group variables connect:** Groups are defined in

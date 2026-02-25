@@ -196,6 +196,30 @@ ansible-galaxy collection install community.general ansible.posix
 
 ---
 
+## Vault-Encrypted Variables in Molecule Tests
+
+Molecule tests use **plaintext values**, not vault-encrypted ones. There is
+no `pass` or GPG setup in `prepare.yml`.
+
+**Why:** Molecule tests validate role logic (does the user module set the
+right password hash, does the template render correctly, etc.). The vault
+decryption pipeline is an orthogonal concern — it operates at the
+`ansible-pull` layer, not the role layer.
+
+**What Molecule tests cover:**
+
+- Plaintext `password_hash` values are correctly passed to the `user` module
+- The `/etc/shadow` entry contains the expected hash format
+- Omitted `password_hash` leaves the account locked
+
+**What virsh integration tests cover (Milestone 8):**
+
+- Full vault decryption pipeline via `--vault-id`
+- Bootstrap with vault-encrypted inventory
+- End-to-end: encrypted hash in inventory → decrypted by vault → set in shadow
+
+---
+
 ## Inspecting Test Environments
 
 - `molecule converge` — runs the playbook, leaves containers running

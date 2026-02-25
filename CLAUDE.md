@@ -168,6 +168,10 @@ ansible-controller/
       verify-state.sh
   templates/
     ansible-pull-wrapper.sh.j2       # wrapper deployed to /usr/local/bin/
+    ansible-vault-client.sh.j2       # vault password client (pass backend)
+    ansible-vault-secret.sh.j2       # encrypt-a-string helper
+    ansible-vault-reveal.sh.j2       # decrypt-and-display helper
+    ansible-mkpasswd.sh.j2           # interactive password hash generator
   inventory/
     hosts.yml
     group_vars/ ...
@@ -274,8 +278,34 @@ Each file, package, and config resource is owned by **exactly one role**.
 | Workstation packages         | `workstation`      | `workstation_packages`     |
 | Service-specific packages    | Extension role     | `syncthing_server` owns syncthing |
 | `ansible-pull` wrapper       | Controller `pre_tasks` | `/usr/local/bin/ansible-pull-wrapper` |
+| Vault scripts                | Controller `pre_tasks` | `/usr/local/bin/ansible-vault-client` |
 | Cron scheduling              | `server` role      | `ansible.builtin.cron`     |
 | User-level personal config   | `dotfiles`         | `~/.config/git/config`     |
+
+---
+
+## Secrets Management
+
+Vault-encrypted variables are stored in the inventory and decrypted at
+runtime via `--vault-id`. The vault password is retrieved from `pass`
+(password-store), backed by GPG.
+
+- **Vault ID:** `scbitworx`
+- **Pass store prefix:** `scbitworx/` (e.g., `scbitworx/vault-password`)
+- **Vault client:** `/usr/local/bin/ansible-vault-client` (deployed by controller)
+- **Password hashing:** `openssl passwd -6 -rounds 500000` (via `ansible-mkpasswd`)
+
+Helper scripts deployed by the controller to `/usr/local/bin/`:
+
+| Script | Purpose |
+|--------|---------|
+| `ansible-vault-client` | Retrieves vault password from `pass` |
+| `ansible-vault-secret` | Encrypts a string as a vault variable |
+| `ansible-vault-reveal` | Decrypts a variable from a YAML file |
+| `ansible-mkpasswd` | Generates SHA-512 password hashes interactively |
+
+> For detailed rationale (why `pass`, vault ID strategy, resource ownership),
+> see [docs/architecture.md](docs/architecture.md#secrets-management)
 
 ---
 
@@ -384,6 +414,7 @@ does not grant full access.
 | Testing (integration)  | virsh VMs                 | Full kernel, real systemd, real package manager  |
 | Dotfiles               | Single role + runtime detection | Decoupled from infra roles              |
 | Shell config           | `conf.d/` drop-ins        | No file conflicts between roles                  |
+| Secrets backend        | `pass` + GPG              | No service deps, offline, hardware key support   |
 
 ---
 

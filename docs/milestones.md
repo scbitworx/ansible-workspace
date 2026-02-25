@@ -151,8 +151,20 @@ target distributions.
 9. Verify linting passes.
 10. Tag `v0.1.0`.
 11. Update controller `requirements.yml`.
+12. Add optional `password_hash` property to `base_admin_users` for setting
+    user passwords via `/etc/shadow`.
+13. Add Ansible Vault integration to the controller:
+    - `pass`+GPG-backed vault client script
+    - Helper scripts (`ansible-vault-secret`, `ansible-vault-reveal`,
+      `ansible-mkpasswd`)
+    - `--vault-id` in wrapper and bootstrap scripts
+    - Sudo re-exec in the wrapper for admin user invocation
+14. Update `ansible.cfg` with `vault_identity_list`.
+15. Molecule tests for password_hash (plaintext hashes; full vault pipeline
+    deferred to Milestone 8).
 
-**Deliverables:** A fully tested `base` role for Arch, Ubuntu, and Debian.
+**Deliverables:** A fully tested `base` role for Arch, Ubuntu, and Debian,
+with optional password management and vault integration in the controller.
 
 ---
 
