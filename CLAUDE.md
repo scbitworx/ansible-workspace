@@ -427,6 +427,19 @@ does not grant full access.
 > For detailed task lists, deliverables, and exit criteria for each
 > milestone, see [docs/milestones.md](docs/milestones.md)
 
+### Active Milestone Tracking
+
+The file [active-milestone.md](active-milestone.md) in the workspace root
+tracks the current milestone with granular task checkboxes. This is the
+primary session-to-session continuity mechanism.
+
+- **Read `active-milestone.md` at the start of each session** to pick up
+  where we left off.
+- **Update checkboxes** as tasks are completed during the session.
+- **Overwrite the file** when starting a new milestone.
+- `docs/milestones.md` is the stable reference (goals, deliverables, exit
+  criteria); `active-milestone.md` is the working checklist.
+
 ---
 
 ## Key Design Decisions Summary

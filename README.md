@@ -15,6 +15,7 @@ Project-wide documentation, design decisions, and development tooling for the
 
 - [ansible-controller](https://github.com/scbitworx/ansible-controller) — Playbook, inventory, and `requirements.yml`
 - [ansible-role-scaffold](https://github.com/scbitworx/ansible-role-scaffold) — Reference template for all roles
+- [ansible-role-base](https://github.com/scbitworx/ansible-role-base) — Base role = run on all hosts
 
 ## License
 
