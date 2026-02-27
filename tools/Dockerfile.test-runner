@@ -62,7 +62,8 @@ RUN pip install --no-cache-dir \
     ansible-lint \
     yamllint \
     molecule \
-    'molecule-plugins[docker]'
+    'molecule-plugins[docker]' \
+    pytest-testinfra
 
 # Install community.general collection to a shared location (the default
 # installs to ~/.ansible which varies by user — use a fixed path instead).

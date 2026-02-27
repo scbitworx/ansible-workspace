@@ -1,190 +1,170 @@
-# Active Milestone: 4 — Single-VM Integration Testing (Arch Linux)
+# Active Milestone: 4a — Integration Test Refactoring
 
 ## Goal
 
-Validate the controller pipeline end-to-end on a single disposable Arch
-Linux libvirt VM, using only the base role.
+Migrate integration testing from shell scripts (virsh + grep assertions) to
+the community-proven pattern: **Molecule + Vagrant + libvirt** for VM
+lifecycle, **Testinfra** (pytest) for assertions. Each role owns its own
+VM-based integration tests. The controller keeps a thin pipeline-level test.
+
+## Motivation
+
+Before building more roles (Milestones 5–8), refactor the test foundation
+so that new roles get proper integration tests from the start — avoiding
+throwaway shell-script tests that would need to be reimplemented later.
 
 ## Exit Criteria
 
-- [x] `bootstrap.sh` successfully installs Ansible and runs the initial pull
-- [x] `ansible-pull-wrapper` completes a full converge
-- [x] Vault-encrypted variables are decrypted correctly
-- [x] The `systemd` timer is active and enabled
-- [x] A second run is idempotent
-- [x] The VM can be destroyed and recreated from the clean snapshot
+- [ ] Base role has Testinfra-based verification for both Docker and VM scenarios
+- [ ] Base role has a `molecule/integration/` scenario using Vagrant + libvirt
+- [ ] Docker CI pipeline continues to pass on GitHub Actions (no regression)
+- [ ] Controller's `verify-state.sh` is slimmed to controller-only assertions
+- [ ] All existing test coverage is preserved or improved
+
+---
+
+## Repos and Branches
+
+| Repo | Branch | Scope |
+|------|--------|-------|
+| `ansible-role-base` | `feature/molecule-vagrant-testinfra` | Testinfra migration + new integration scenario |
+| `ansible-controller` | `feature/thin-integration-test` | Slim verify-state.sh to controller-only assertions |
+| `ansible-workspace` | `main` (no branch) | Milestone tracking only |
+
+Work the base role first. Controller changes depend on a new base role tag.
 
 ---
 
 ## Tasks
 
-### 1. Design Integration Test Approach
+### Phase 1: Testinfra Migration (Docker Scenario) — ansible-role-base
 
-- [x] Determine VM creation strategy — **Arch cloud image**
-- [x] Decide on network config — **Default NAT (virbr0)**
-- [x] Decide on snapshot strategy — **virsh snapshot-create-as**
-- [x] Determine how vault/pass/GPG will be set up — **Pre-bootstrap script**
-- [x] Document decisions below in "Design Decisions" section
+Migrate the existing Docker scenario's verifier from Ansible assert to
+Testinfra before adding the Vagrant scenario.
 
-### 2. Write `scripts/integration/create-base-vms.sh`
+- [ ] Create feature branch `feature/molecule-vagrant-testinfra`
+- [ ] Create `molecule/tests/` shared test directory
+- [ ] Write `conftest.py` — fixtures for test_users, os_family, admin_group,
+      vm_only marker skip logic
+- [ ] Write `test_packages.py` — base package binary checks
+- [ ] Write `test_timezone.py` — /etc/localtime exists
+- [ ] Write `test_sshd.py` — sshd_config hardening (parameterized)
+- [ ] Write `test_ansible_pull.py` — timer/service unit files, enablement
+- [ ] Write `test_unattended_upgrades.py` — Debian/Ubuntu only, skip on Arch
+- [ ] Write `test_users.py` — per-user checks (parameterized over users):
+      user existence, groups, shell, sudoers, authorized_keys, shell config
+      dirs, profile, bashrc, symlinks, password hash
+- [ ] Update `molecule/default/molecule.yml` — change verifier to testinfra
+- [ ] Move test variables from `converge.yml` to `molecule.yml` provisioner
+      inventory (allows sharing converge.yml between scenarios)
+- [ ] Simplify `converge.yml` (remove inline vars)
+- [ ] Add `pytest-testinfra` to CI workflow pip install
+- [ ] Validate on all 3 Docker platforms via test-runner sidecar
+- [ ] Remove old `verify.yml` and `verify_user.yml`
 
-- [x] Generate test SSH keypair in `testdata/` (if not present)
-- [x] Download Arch cloud image (if not cached)
-- [x] Create cloud-init seed ISO (meta-data + user-data with test SSH key)
-- [x] Copy cloud image, resize disk to 10G
-- [x] Create VM via `virt-install --import` on default NAT network
-- [x] Wait for cloud-init to finish and VM to be SSH-accessible
-- [x] Take `clean` snapshot via `virsh snapshot-create-as`
-- [x] Script should be idempotent (destroy existing VM if present)
+### Phase 2: Vagrant Integration Scenario — ansible-role-base
 
-### 2a. Create test GPG key and vault password in `testdata/`
+- [ ] Create `molecule/integration/molecule.yml` — Vagrant driver, libvirt
+      provider, `generic/arch` box, 2048 MB RAM, 2 CPUs
+- [ ] Create `molecule/integration/prepare.yml` — minimal (dummy
+      ansible-pull-wrapper, pacman cache update)
+- [ ] Create `molecule/integration/converge.yml` (shared or symlink)
+- [ ] Add `@pytest.mark.vm_only` tests:
+      - Actually attempt root SSH and confirm rejection
+      - Verify ansible-pull.timer is running (not just enabled)
+      - Verify sshd service is running and enabled
+- [ ] Validate `molecule test -s integration` on developer workstation
+- [ ] Confirm Docker scenario still works (`molecule test`)
+- [ ] Update base role README with integration scenario docs
 
-- [x] Generate a test-only GPG key (no passphrase, committed to repo)
-- [x] Store test vault password in `testdata/vault-password.txt`
-- [x] Add `testdata/id_ed25519` to `.gitignore` (or generate deterministically)
+### Phase 3: Merge and Tag — ansible-role-base
 
-### 3. Write `scripts/integration/run-integration-test.sh`
+- [ ] Push branch, create PR
+- [ ] Confirm CI passes (Docker scenario on GitHub Actions)
+- [ ] Merge to main
+- [ ] Tag new version (e.g., v0.16.0)
 
-- [x] Revert VM to `clean` snapshot
-- [x] Start VM and wait for SSH
-- [x] Run pre-bootstrap setup (install pass/gpg, import test GPG key,
-      init pass store, insert test vault password)
-- [x] Copy and run `bootstrap.sh`
-- [x] Verify converge succeeded (exit code)
-- [x] Run `ansible-pull-wrapper` a second time for idempotency check
-- [x] Call `verify-state.sh`
-- [x] Report pass/fail summary
+### Phase 4: Controller Changes — ansible-controller
 
-### 4. Write `scripts/integration/verify-state.sh`
+- [ ] Create feature branch `feature/thin-integration-test`
+- [ ] Slim `verify-state.sh` to controller-only assertions (~4-5 checks):
+      1. ansible-pull-wrapper exists and is executable
+      2. ansible-vault-client exists and is executable
+      3. Vault-encrypted password hash decrypted and applied
+      4. Root SSH is blocked (proves full converge completed)
+- [ ] Update `requirements.yml` to pin new base role tag
+- [ ] Validate `run-all.sh` on workstation
+- [ ] Merge and push
 
-- [x] SSH into VM and assert base role state:
-  - Admin user exists with correct groups/shell
-  - SSH hardening applied (sshd_config settings)
-  - Timezone and locale set
-  - Base packages installed
-  - `ansible-pull.timer` active and enabled
-  - `ansible-pull.service` unit exists
-  - Vault-encrypted variables decrypted correctly (e.g., password_hash)
-  - Unattended-upgrades NOT installed (Arch — no-op expected)
+### Phase 5: Update Tracking
 
-### 5. Run the Full Cycle
-
-- [x] Execute the scripts on the host workstation
-- [x] Fix any issues discovered
-- [x] Confirm all exit criteria pass
-
-### 6. Document in Controller README
-
-- [x] Add integration testing section to `ansible-controller/README.md`
-- [x] Document prerequisites (libvirt, qemu, virt-install, cdrtools)
-- [x] Document usage (`create-base-vms.sh`, `run-integration-test.sh`)
-
----
-
-## Design Decisions
-
-### VM Creation: Arch Cloud Image
-
-Use the official Arch Linux cloud image (`Arch-Linux-x86_64-cloudimg.qcow2`)
-from `geo.mirror.pkgbuild.com/images/`. Boot directly with `virt-install
---import` — no interactive installer needed.
-
-cloud-init handles first-boot config (SSH key, hostname) via a seed ISO
-created with `genisoimage`. The seed ISO contains two files:
-
-- `meta-data` — hostname, instance ID
-- `user-data` — root SSH key (for test harness access)
-
-cloud-init is a local-only tool here — no cloud provider integration.
-
-**Host prerequisites:** `libvirt`, `qemu`, `virt-install`, `genisoimage`
-(Arch package: `cdrtools`).
-
-### Network: Default NAT (virbr0)
-
-Use libvirt's default NAT network. VM gets a DHCP address discovered
-programmatically via `virsh domifaddr`. No host network changes required.
-
-### Snapshots: virsh snapshot-create-as
-
-After cloud-init completes first boot, take a named `clean` snapshot.
-`run-integration-test.sh` reverts to this snapshot before each test run.
-
-`create-base-vms.sh` handles the case where the VM already exists by
-destroying and recreating it (idempotent).
-
-### Vault/Pass/GPG: Pre-bootstrap Script
-
-`run-integration-test.sh` SSHs into the VM after revert and runs a setup
-step before `bootstrap.sh`:
-
-1. Install `pass` and `gnupg`
-2. Import a test-only GPG key (committed to the repo — protects nothing real)
-3. Initialize the pass store: `pass init <test-gpg-key-id>`
-4. Insert the test vault password: `pass insert scbitworx/vault-password`
-
-This mirrors the real operator workflow and keeps the cloud-init config
-minimal. The test GPG key and vault password are stored in
-`scripts/integration/testdata/`.
-
-### Test SSH Key
-
-A dedicated test-only SSH keypair is generated by `create-base-vms.sh` and
-stored in `scripts/integration/testdata/`. This key is injected via
-cloud-init and used by all integration scripts to SSH into the VM.
-
-### Controller Cleanup
-
-Removed placeholder role entries from `requirements.yml` and `local.yml` —
-only roles with existing repos and tags are listed. Future plays are
-commented out in `local.yml` as a reference. This was required because
-`ansible-galaxy install` would fail on non-existent repos.
-
-### Test Inventory
-
-Separate `inventory/test-hosts.yml` with `test-archlinux` host. Keeps test
-infrastructure out of the production inventory. `host_vars/test-archlinux.yml`
-overrides `base_admin_users` with a test user and vault-encrypted password.
-
-### Bootstrap Flexibility
-
-`bootstrap.sh` accepts `-i <inventory_path>` flag (defaults to
-`inventory/hosts.yml`). Integration tests pass `-i inventory/test-hosts.yml`.
-
-### Wrapper Template
-
-`ansible-pull-wrapper.sh.j2` uses `{{ controller_inventory | default('inventory/hosts.yml') }}`
-so the test host's wrapper points at the test inventory. Production hosts
-are unaffected (default value).
+- [ ] Update active-milestone.md (mark complete or transition to next milestone)
+- [ ] Update MEMORY.md with Testinfra/Vagrant patterns for future roles
 
 ---
 
-## Blockers / Open Questions
+## Key Design Decisions
 
-_(All resolved)_
+### Testinfra for Both Scenarios
+Ansible assert-based verify.yml is verbose (337 lines, 2 tasks per assertion)
+with poor failure messages. Testinfra provides purpose-built infrastructure
+abstractions, parameterized tests, and pytest output with diffs. Both Docker
+and VM scenarios use the same Testinfra tests from `molecule/tests/`.
 
-- Scripts require libvirt on the host — executed by user on workstation
-  (not in Claude Code container). **Resolved.**
-- Test GPG key generated and committed. **Resolved.**
-- Vault-encrypted `password_hash` in `host_vars/test-archlinux.yml`
-  pre-encrypted with test vault password. **Resolved.**
+### Shared Tests with VM-Only Markers
+Tests live in `molecule/tests/` (shared). VM-only tests use
+`@pytest.mark.vm_only` and are skipped when `MOLECULE_DRIVER_NAME == "docker"`
+(detected in conftest.py). No test duplication.
+
+### Per-Role VM Ownership
+Each role manages its own VM lifecycle via Molecule + Vagrant. No shared VM
+infrastructure between roles. This follows the dev-sec and githubixx patterns
+and avoids coupling roles to the controller for testing.
+
+### Controller Stays as Shell Scripts
+The controller's integration test validates bootstrap.sh, ansible-pull
+mechanics, and vault decryption — workflow-level concerns that don't fit
+Molecule's role-testing model. The existing virsh + snapshot approach is
+appropriate. Only `verify-state.sh` is slimmed to remove role-specific
+assertions.
+
+### Vagrant Box: generic/arch
+Maintained by the Roboxes project, rebuilt regularly, well-tested with
+libvirt. Community standard for Arch Vagrant boxes. Ubuntu/Debian boxes
+added later (Milestone 9).
+
+---
+
+## Dependencies and Prerequisites
+
+**Developer workstation needs (Phase 2):**
+- `vagrant` package
+- `vagrant-libvirt` plugin (`vagrant plugin install vagrant-libvirt`)
+- Existing libvirt/qemu setup (already present from Milestone 4)
+
+**Test-runner sidecar needs (Phase 1):**
+- `pytest-testinfra` — must be installed in sidecar for Docker testing
+
+**No changes to GitHub Actions runners** — VM tests run locally only.
+
+---
+
+## Verification Strategy
+
+| Phase | How to verify |
+|-------|--------------|
+| Phase 1 | `ssh test-runner "env -C /workspace/ansible-role-base molecule test"` — all 3 platforms pass |
+| Phase 2 | `molecule test -s integration` on workstation — Arch VM passes |
+| Phase 2 | `molecule test` still works (Docker regression check) |
+| Phase 3 | GitHub Actions CI green on PR |
+| Phase 4 | `scripts/integration/run-all.sh` on workstation — slim verify passes |
 
 ---
 
 ## Progress Log
 
-- **Session 1:** Implemented ansible-pull timer + unattended-upgrades in
-  base role (v0.15.0). Updated docs for production safety (disposable VMs
-  only). Reordered milestones (integration testing → M4, before new roles).
-  Established active-milestone workflow. Designed integration test approach.
-  Wrote all integration scripts, cleaned up controller placeholders, created
-  test inventory and host_vars.
-- **Sessions 2–3:** Executed full integration cycle on host workstation.
-  Fixed issues: cloud image setup, sshd hardening blocking root SSH
-  (switched to testadmin for verification), package verification, ansible-pull
-  idempotency (-o flag removal), galaxy install idempotency. All 3 checks
-  now pass: bootstrap, 22/22 state verification, idempotency (0 changed).
-  Added `run-all.sh` convenience wrapper and `generate-test-gpg-key.sh`.
-  Test GPG key committed to repo.
-- **Session 4:** Updated active-milestone.md to reflect completed state.
-  Only remaining task: README documentation (task 6).
+- **Milestone 4 (complete):** Shell-script integration tests fully operational.
+  All 3 checks passing (bootstrap, 22/22 verification, idempotency).
+  README documentation added. Tagged base v0.15.2, scaffold v0.2.0.
+- **Milestone 4a (this document):** Refactoring integration tests to
+  Molecule + Vagrant + Testinfra before proceeding to new roles.
