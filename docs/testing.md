@@ -190,6 +190,34 @@ fails.
 
 These are covered by the Vagrant scenario.
 
+### Alternate Scenario
+
+The alternate scenario tests non-default role variable values. It runs a
+single platform (Arch Docker) to keep it fast. Variables tested:
+
+- `base_pull_timer_enabled: false` — timer units exist but are disabled
+- `base_editor: "nano"` — EDITOR/VISUAL set to nano in bashrc
+- `base_histsize: 5000` — custom HISTSIZE/HISTFILESIZE
+- `base_extra_packages: ["tree"]` — extra package installation
+- Single user (`altuser1`) with default sudo settings
+
+Tests live in `molecule/tests_alternate/` (separate from the shared
+`molecule/tests/` used by default and integration).
+
+### Shared Test Data (`shared_vars.yml`)
+
+Both the default and integration scenarios use `vars_files:
+[../shared_vars.yml]` instead of inline variables. This eliminates
+duplication of the `base_admin_users` test data between converge files.
+
+The shared file defines three test users:
+
+| User | Keys | password_hash | sudo_passwordless |
+|------|------|---------------|-------------------|
+| testuser1 | 2 keys | yes (SHA-512) | yes (default) |
+| testuser2 | 1 key | no | yes (default) |
+| testuser3 | 1 key | no | no |
+
 ---
 
 ## Vagrant Scenario (Integration)
@@ -374,14 +402,19 @@ verifier:
 ### Test Directory Structure
 
 ```text
-molecule/tests/
-  conftest.py                    # fixtures, markers, vm_only skip logic
-  test_packages.py               # base package binary checks
-  test_timezone.py               # /etc/localtime exists
-  test_sshd.py                   # sshd_config hardening + vm_only service check
-  test_ansible_pull.py           # timer/service units + vm_only running check
-  test_unattended_upgrades.py    # Debian/Ubuntu only, skipped on Arch
-  test_users.py                  # per-user checks (parameterized)
+molecule/tests/                      # shared between default + integration scenarios
+  conftest.py                        # fixtures, markers, vm_only skip logic
+  test_packages.py                   # base package binary checks
+  test_timezone.py                   # /etc/localtime, /etc/locale.conf
+  test_sshd.py                       # sshd_config hardening + algorithm directives + vm_only service check
+  test_ansible_pull.py               # timer/service units + vm_only running check
+  test_unattended_upgrades.py        # Debian/Ubuntu only, skipped on Arch
+  test_users.py                      # per-user checks (parameterized)
+
+molecule/tests_alternate/            # alternate scenario only (non-default variable values)
+  conftest.py                        # minimal
+  test_timer_disabled.py             # timer units exist but disabled
+  test_custom_vars.py                # editor=nano, histsize=5000, tree, altuser1
 ```
 
 ### Shared Fixtures (`conftest.py`)
@@ -396,10 +429,11 @@ def admin_group(host):
 
 @pytest.fixture(
     params=[
-        {"name": "testuser1", "expected_keys": [...], "password_hash": True},
-        {"name": "testuser2", "expected_keys": [...], "password_hash": False},
+        {"name": "testuser1", "expected_keys": [...], "password_hash": True, "sudo_passwordless": True},
+        {"name": "testuser2", "expected_keys": [...], "password_hash": False, "sudo_passwordless": True},
+        {"name": "testuser3", "expected_keys": [...], "password_hash": False, "sudo_passwordless": False},
     ],
-    ids=["testuser1", "testuser2"],
+    ids=["testuser1", "testuser2", "testuser3"],
 )
 def test_user(request):
     """Parameterized fixture yielding each test user dict."""
@@ -460,14 +494,15 @@ def test_unattended_upgrades_installed(host):
 | `host.file().linked_to` | Returns absolute path, not relative |
 | `host.user()` | Provides `.groups`, `.shell`, `.home`, `.exists` |
 | `host.run()` | For commands not covered by built-in modules |
-| Password hash in `molecule.yml` | `$` characters are interpreted as placeholders by Molecule's config parser — keep password hashes in `converge.yml` instead |
+| Password hash in `molecule.yml` | `$` characters are interpreted as placeholders by Molecule's config parser — keep password hashes in `converge.yml` or `shared_vars.yml` instead |
 
 ### Test Counts
 
 | Scenario | Passed | Skipped | Why skipped |
 |----------|--------|---------|-------------|
-| Docker (3 platforms) | 230 | 10 | vm_only tests (6) + unattended-upgrades on Arch (4) |
-| Vagrant (Arch VM) | 76 | 4 | unattended-upgrades on Arch |
+| Docker default (3 platforms) | 326 | 10 | vm_only tests (6) + unattended-upgrades on Arch (4) |
+| Docker alternate (Arch only) | 8 | 0 | — |
+| Vagrant (Arch VM) | 108 | 4 | unattended-upgrades on Arch |
 
 ---
 
@@ -528,7 +563,7 @@ requires libvirt/qemu and takes longer.
 jobs:
   lint:
     steps:
-      - pip install ansible-core ansible-lint yamllint
+      - pip install 'ansible-core>=2.17,<2.18' 'ansible-lint>=25,<26' 'yamllint>=1,<2'
       - ansible-galaxy collection install community.general ansible.posix
       - yamllint .
       - ansible-lint
@@ -536,9 +571,11 @@ jobs:
   molecule:
     needs: lint
     steps:
-      - pip install ansible-core molecule molecule-plugins[docker] pytest-testinfra
+      - pip install 'ansible-core>=2.17,<2.18' 'molecule>=25,<26'
+          'molecule-plugins[docker]>=25,<26' 'pytest-testinfra>=10,<11'
       - ansible-galaxy collection install community.general ansible.posix community.docker
-      - molecule test
+      - molecule test                  # default scenario (3 platforms)
+      - molecule test -s alternate     # alternate scenario (Arch only)
 ```
 
 ### Required Collections
