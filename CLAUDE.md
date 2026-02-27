@@ -343,20 +343,21 @@ Helper scripts deployed by the controller to `/usr/local/bin/`:
 
 ## Testing Strategy
 
-- **Unit testing:** Molecule + Docker (systemd in container) for all roles.
-  Three platforms: Arch, Ubuntu, Debian.
-- **Arch image:** Official `archlinux/archlinux:latest` + `prepare.yml` for
-  Python and sudo. No third-party dependency.
-- **Ubuntu/Debian images:** `geerlingguy/docker-ubuntu2404-ansible`,
-  `geerlingguy/docker-debian12-ansible`
-- **Integration testing:** Disposable virsh VMs with snapshot-revert for
+- **Docker scenario** (default): Molecule + Docker (systemd in container)
+  for all roles. Three platforms: Arch, Ubuntu, Debian. Runs in CI and
+  test-runner sidecar.
+- **Vagrant scenario** (integration): Molecule + Vagrant + libvirt for
+  VM-based testing. Real kernel, real systemd, real package manager.
+  Currently Arch only. Runs on developer workstation.
+- **Controller integration**: Disposable virsh VMs with snapshot-revert for
   full-stack validation (bootstrap through `ansible-pull`). **Never run
-  against production hosts** (`ceres`, `mars`, `jupiter`) — only against
-  temporary libvirt VMs that model their role stacks.
+  against production hosts** — only against temporary libvirt VMs.
+- **Verifier**: Testinfra (pytest) for both Docker and Vagrant scenarios.
+  Tests are shared via `molecule/tests/` with `@pytest.mark.vm_only` for
+  VM-specific tests.
 
-> For Molecule configuration, Docker image details, `prepare.yml` patterns,
-> and precondition handling, see
-> [docs/molecule-testing.md](docs/molecule-testing.md)
+> For full testing configuration, Testinfra patterns, workarounds, and
+> design decisions, see [docs/testing.md](docs/testing.md)
 
 ### Test-Runner Sidecar (Claude Code Sessions)
 
@@ -458,8 +459,10 @@ primary session-to-session continuity mechanism.
 | Resource ownership     | Each resource owned by exactly one role | No idempotency conflicts            |
 | Distro compatibility   | Per-role `first_found` + `include_vars` | Cascading specificity; graceful fallback |
 | Entry point            | `ansible-pull`            | Self-contained, no control node needed           |
-| Testing (unit)         | Molecule + Docker         | Community standard; seconds to spin up           |
-| Testing (integration)  | Disposable virsh VMs      | Full kernel, real systemd, real package manager  |
+| Testing (Docker)       | Molecule + Docker         | Community standard; seconds to spin up; CI       |
+| Testing (Vagrant)      | Molecule + Vagrant + libvirt | Full kernel, real systemd; developer workstation |
+| Testing (controller)   | Disposable virsh VMs      | Full pipeline: bootstrap, vault, ansible-pull    |
+| Test verifier          | Testinfra (pytest)        | Structured assertions, parameterized, shared     |
 | Dotfiles               | Single role + runtime detection | Decoupled from infra roles              |
 | Shell config           | `conf.d/` drop-ins        | No file conflicts between roles                  |
 | Secrets backend        | `pass` + GPG              | No service deps, offline, hardware key support   |
@@ -516,7 +519,7 @@ scbitworx/
 - [docs/naming-rationale.md](docs/naming-rationale.md) — Why underscores, community precedents, variable conventions
 - [docs/ansible-pull.md](docs/ansible-pull.md) — Playbook structure, wrapper script, bootstrap, scheduling
 - [docs/distro-compatibility.md](docs/distro-compatibility.md) — `first_found` pattern, per-role distro handling
-- [docs/molecule-testing.md](docs/molecule-testing.md) — Docker config, image choices, prepare.yml, preconditions
+- [docs/testing.md](docs/testing.md) — Docker and Vagrant scenarios, Testinfra, CI pipeline, workarounds
 - [docs/dotfiles.md](docs/dotfiles.md) — XDG conventions, runtime detection, shell drop-in pattern
 - [docs/milestones.md](docs/milestones.md) — Implementation milestones with full task lists
 - [docs/workspace-setup.md](docs/workspace-setup.md) — Claude Code container setup checklist
