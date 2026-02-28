@@ -31,6 +31,9 @@ RUN apk update && \
     git \
     # Process tools (pgrep used by run-agent readiness check)
     procps \
+    # Node.js for markdownlint-cli2
+    nodejs \
+    npm \
     # Build deps for Python packages with native extensions
     build-base \
     python3-dev \
@@ -64,6 +67,9 @@ RUN pip install --no-cache-dir \
     molecule \
     'molecule-plugins[docker]' \
     pytest-testinfra
+
+# Install markdownlint-cli2 for Markdown linting
+RUN npm install -g markdownlint-cli2 && npm cache clean --force
 
 # Install community.general collection to a shared location (the default
 # installs to ~/.ansible which varies by user — use a fixed path instead).
