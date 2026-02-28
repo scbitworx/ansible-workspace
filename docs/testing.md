@@ -30,7 +30,7 @@ tier is documented in the controller repo, not here.
 
 ### CI (GitHub Actions)
 
-CI installs the toolchain via pip in a fresh runner:
+CI installs the toolchain via `pip` in a fresh runner:
 
 ```bash
 pip install ansible-core molecule molecule-plugins[docker] pytest-testinfra
@@ -55,7 +55,7 @@ access.
 
 ### Developer Workstation (Vagrant Scenario)
 
-The Vagrant scenario requires a Python virtual environment. System-level pip
+The Vagrant scenario requires a Python virtual environment. System-level `pip`
 install is blocked on Arch Linux, and the AUR `molecule-plugins` package has
 circular build dependencies. A venv at `~/.virtualenvs/molecule/` avoids
 both problems.
@@ -77,7 +77,7 @@ shell profile modifications are needed on the host.
 
 - `vagrant` package (system)
 - `vagrant-libvirt` plugin: `vagrant plugin install vagrant-libvirt`
-- libvirt/qemu running: `systemctl start libvirtd`
+- `libvirt`/`qemu` running: `systemctl start libvirtd`
 
 Run `molecule/integration/check-prereqs.sh` from the role directory to
 verify all prerequisites.
@@ -145,7 +145,7 @@ can run. The `raw` module handles this without needing Python on the target:
       ansible.builtin.raw: systemctl start sshd
 ```
 
-Debian/Ubuntu containers need an apt cache update, locale support, and sshd
+Debian/Ubuntu containers need an `apt` cache update, locale support, and `sshd`
 started:
 
 ```yaml
@@ -176,7 +176,7 @@ started:
 ```
 
 **Why start `sshd` in `prepare.yml`:** Roles that deploy `/etc/ssh/sshd_config`
-with `validate: sshd -t -f %s` and a handler that restarts sshd need the
+with `validate: sshd -t -f %s` and a handler that restarts `sshd` need the
 service already running before converge. Without this, the restart handler
 fails.
 
@@ -265,8 +265,8 @@ platforms:
 ```
 
 **Network:** The `management_network_name: default` setting reuses the
-existing libvirt default network (`virbr0`) instead of letting
-vagrant-libvirt create its own (`virbr1`). Creating a separate network fails
+existing `libvirt` default network (`virbr0`) instead of letting
+`vagrant-libvirt` create its own (`virbr1`). Creating a separate network fails
 on systems where Docker's nftables rules interfere with libvirt network
 creation.
 
@@ -359,7 +359,7 @@ See: <https://github.com/ansible-community/molecule-plugins/issues/301>
 
 #### 2. `nftables` FORWARD Chain (Docker Coexistence)
 
-Docker sets `policy drop` on the nftables FORWARD chain and only allows
+Docker sets `policy drop` on the `nftables` FORWARD chain and only allows
 traffic on Docker bridge interfaces. Traffic from `virbr0` (libvirt's
 default bridge) is dropped, preventing VMs from reaching the internet.
 
@@ -377,7 +377,7 @@ These rules do not persist across reboots. `run.sh` re-adds them as needed.
 
 #### 3. Stale Vagrant Box Keyring
 
-Covered above in the prepare.yml section. The `generic/arch` box's pacman
+Covered above in the `prepare.yml` section. The `generic/arch` box's `pacman`
 keyring does not include newer Arch Linux packager signing keys.
 
 ---
@@ -556,7 +556,7 @@ an orthogonal concern at the `ansible-pull` layer.
 
 GitHub Actions runs lint and Docker Molecule tests on every push and PR to
 main. The Vagrant scenario runs on the developer workstation only — it
-requires libvirt/qemu and takes longer.
+requires `libvirt`/`qemu` and takes longer.
 
 ```yaml
 # .github/workflows/ci.yml

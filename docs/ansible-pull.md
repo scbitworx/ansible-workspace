@@ -190,7 +190,7 @@ Before running `bootstrap.sh`, the operator must set up the vault password
 backend on the target host:
 
 1. Install `pass` and `gpg` (distro package manager)
-2. Initialize the pass store: `pass init <gpg-key-id>`
+2. Initialize the `pass` store: `pass init <gpg-key-id>`
 3. Add the vault password: `pass insert scbitworx/vault-password`
 
 The bootstrap script validates these prerequisites and exits with a clear

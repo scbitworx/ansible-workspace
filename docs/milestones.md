@@ -168,9 +168,9 @@ target distributions.
     - Helper scripts (`ansible-vault-secret`, `ansible-vault-reveal`,
       `ansible-mkpasswd`)
     - `--vault-id` in wrapper and bootstrap scripts
-    - Sudo re-exec in the wrapper for admin user invocation
+    - `sudo` re-exec in the wrapper for admin user invocation
 14. Update `ansible.cfg` with `vault_identity_list`.
-15. Molecule tests for password_hash (plaintext hashes; full vault pipeline
+15. Molecule tests for `password_hash` (plaintext hashes; full vault pipeline
     deferred to Milestone 4).
 
 **Deliverables:** A fully tested `base` role for Arch, Ubuntu, and Debian,

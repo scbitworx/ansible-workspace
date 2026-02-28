@@ -11,13 +11,14 @@ Molecule.
 
 ## Project Status
 
-**Current Status**: Milestone 4 In Progress
+**Current Status**: Milestone 4 Complete — Ready for Milestone 5
 
-Milestones 1–3 are complete. The controller repo, scaffold role, and base
+Milestones 1–4 are complete. The controller repo, scaffold role, and base
 role are live on GitHub with passing CI. The test-runner sidecar is
 operational — Molecule tests run from within Claude Code sessions via SSH.
-
-Milestone 4 (single-VM integration testing with Arch Linux) is in progress.
+Single-VM integration testing (Arch Linux) is validated end-to-end. The base
+role (v0.26.0) has been through 8 rounds of deep audits covering security
+hardening, test coverage, and documentation.
 
 ---
 
@@ -154,7 +155,7 @@ all:
         ceres:
 ```
 
-### Variable Precedence (most specific wins)
+### Variable Precedence (Most Specific Wins)
 
 1. Role defaults (`defaults/main.yml`) — lowest
 2. `group_vars/all.yml`
@@ -214,14 +215,20 @@ ansible-role-<role_name>/
   files/                     # static files
   handlers/main.yml          # handlers (role-name-prefixed)
   meta/main.yml              # Galaxy metadata (no dependencies)
-  molecule/default/          # Docker-based tests
-    molecule.yml, converge.yml, prepare.yml, verify.yml
+  molecule/
+    default/                 # Docker-based tests (3 platforms)
+      molecule.yml, converge.yml, prepare.yml
+    alternate/               # Docker tests with non-default vars (optional)
+      molecule.yml, converge.yml, prepare.yml
+    integration/             # Vagrant + libvirt VM tests (optional)
+      molecule.yml, converge.yml, run.sh, check-prereqs.sh
+    shared_vars.yml          # shared test variables (DRY across scenarios)
+    tests/                   # Testinfra tests (shared by default + integration)
+    tests_alternate/         # Testinfra tests for alternate scenario
   tasks/
     main.yml                 # entry point
-    Archlinux.yml            # distro-specific tasks (if needed)
-    Debian.yml               # shared Ubuntu/Debian tasks (if needed)
+    <task_group>.yml         # task files organized by concern
   templates/                 # Jinja2 templates
-  tests/inventory, test.yml  # legacy test dir
   vars/
     Archlinux.yml            # Arch-specific variables
     Debian.yml               # shared Ubuntu/Debian variables
@@ -320,7 +327,7 @@ Each file, package, and config resource is owned by **exactly one role**.
 
 Vault-encrypted variables are stored in the inventory and decrypted at
 runtime via `--vault-id`. The vault password is retrieved from `pass`
-(password-store), backed by GPG.
+(password-store), backed by `GPG`.
 
 - **Vault ID:** `scbitworx`
 - **Pass store prefix:** `scbitworx/` (e.g., `scbitworx/vault-password`)
@@ -346,15 +353,18 @@ Helper scripts deployed by the controller to `/usr/local/bin/`:
 - **Docker scenario** (default): Molecule + Docker (systemd in container)
   for all roles. Three platforms: Arch, Ubuntu, Debian. Runs in CI and
   test-runner sidecar.
+- **Docker scenario** (alternate): Molecule + Docker with non-default
+  variable values. Single platform (Arch). Validates that overridable
+  variables produce the expected config. Runs in CI and test-runner sidecar.
 - **Vagrant scenario** (integration): Molecule + Vagrant + libvirt for
   VM-based testing. Real kernel, real systemd, real package manager.
   Currently Arch only. Runs on developer workstation.
 - **Controller integration**: Disposable virsh VMs with snapshot-revert for
   full-stack validation (bootstrap through `ansible-pull`). **Never run
-  against production hosts** — only against temporary libvirt VMs.
-- **Verifier**: Testinfra (pytest) for both Docker and Vagrant scenarios.
-  Tests are shared via `molecule/tests/` with `@pytest.mark.vm_only` for
-  VM-specific tests.
+  against production hosts** — only against temporary `libvirt` VMs.
+- **Verifier**: Testinfra (pytest) for all scenarios. Default and integration
+  share tests via `molecule/tests/` with `@pytest.mark.vm_only` for
+  VM-specific tests. Alternate has its own tests in `molecule/tests_alternate/`.
 
 > For full testing configuration, Testinfra patterns, workarounds, and
 > design decisions, see [docs/testing.md](docs/testing.md)
@@ -362,7 +372,7 @@ Helper scripts deployed by the controller to `/usr/local/bin/`:
 ### Test-Runner Sidecar (Claude Code Sessions)
 
 Molecule requires Docker access to create test containers. The Claude Code
-container is hardened (cap-drop=ALL, read-only root, no-new-privileges) and
+container is hardened (`cap-drop=ALL`, read-only root, `no-new-privileges`) and
 does **not** have Docker socket access. A **test-runner sidecar** container
 handles Molecule execution instead.
 
@@ -372,12 +382,18 @@ immediately visible to Molecule.
 
 ```bash
 # From inside Claude Code — run molecule tests for any role:
-ssh test-runner "cd /workspace/ansible-role-<name> && molecule test"
+ssh test-runner "env -C /workspace/ansible-role-<name> molecule test"
+
+# Run alternate scenario:
+ssh test-runner "env -C /workspace/ansible-role-<name> molecule test -s alternate"
 
 # Fast iteration (keep containers between runs):
-ssh test-runner "cd /workspace/ansible-role-<name> && molecule converge"
-ssh test-runner "cd /workspace/ansible-role-<name> && molecule verify"
-ssh test-runner "cd /workspace/ansible-role-<name> && molecule destroy"
+ssh test-runner "env -C /workspace/ansible-role-<name> molecule converge"
+ssh test-runner "env -C /workspace/ansible-role-<name> molecule verify"
+ssh test-runner "env -C /workspace/ansible-role-<name> molecule destroy"
+
+# Linting:
+ssh test-runner "env -C /workspace/ansible-role-<name> ansible-lint"
 ```
 
 **Security model:** The test-runner has Docker access but zero credentials
@@ -401,9 +417,9 @@ does not grant full access.
 - Shell `conf.d/` drop-in pattern: `base` deploys `~/.config/bash/bashrc`
   with a sourcing loop; `dotfiles` drops fragments into `conf.d/`.
 - Login profile lives at `~/.config/profile` (not under `bash/`) because it
-  is sourced by display managers and POSIX shells — not just bash.
+  is sourced by display managers and POSIX shells — not just `bash`.
   `~/.profile` symlinks to it.
-- Bash login profile at `~/.config/bash/bash_profile` ensures bash login
+- Bash login profile at `~/.config/bash/bash_profile` ensures `bash` login
   shells source `~/.profile`. `~/.bash_profile` symlinks to it.
 
 > For full dotfiles architecture, XDG conventions, symlink tables, detection
@@ -413,17 +429,17 @@ does not grant full access.
 
 ## Implementation Milestones
 
-| # | Milestone                          | Summary                                    |
-|---|------------------------------------|--------------------------------------------|
-| 1 | Foundation                         | GitHub org + controller repo               |
-| 2 | Scaffold Role + Testing + CI/CD    | Walking skeleton to validate full pipeline |
-| 3 | Base Role                          | Core system configuration                  |
-| 4 | Single-VM Integration (Arch)       | Validate controller pipeline end-to-end    |
-| 5 | Server + Workstation Roles         | Group-level core roles                     |
-| 6 | Laptop Core Role                   | Laptop-specific core role                  |
-| 7 | Initial Extension Roles            | First extension roles to validate pattern  |
-| 8 | Dotfiles Role                      | Personal config with runtime detection     |
-| 9 | Full Integration Matrix            | All distros, all profiles with disposable VMs |
+| # | Milestone                          | Status   | Summary                                    |
+|---|------------------------------------| -------- |--------------------------------------------|
+| 1 | Foundation                         | Complete | GitHub org + controller repo               |
+| 2 | Scaffold Role + Testing + CI/CD    | Complete | Walking skeleton to validate full pipeline |
+| 3 | Base Role                          | Complete | Core system configuration                  |
+| 4 | Single-VM Integration (Arch)       | Complete | Validate controller pipeline end-to-end    |
+| 5 | Server + Workstation Roles         | Pending  | Group-level core roles                     |
+| 6 | Laptop Core Role                   | Pending  | Laptop-specific core role                  |
+| 7 | Initial Extension Roles            | Pending  | First extension roles to validate pattern  |
+| 8 | Dotfiles Role                      | Pending  | Personal config with runtime detection     |
+| 9 | Full Integration Matrix            | Pending  | All distros, all profiles with disposable VMs |
 
 > For detailed task lists, deliverables, and exit criteria for each
 > milestone, see [docs/milestones.md](docs/milestones.md)
@@ -461,7 +477,7 @@ primary session-to-session continuity mechanism.
 | Entry point            | `ansible-pull`            | Self-contained, no control node needed           |
 | Testing (Docker)       | Molecule + Docker         | Community standard; seconds to spin up; CI       |
 | Testing (Vagrant)      | Molecule + Vagrant + libvirt | Full kernel, real systemd; developer workstation |
-| Testing (controller)   | Disposable virsh VMs      | Full pipeline: bootstrap, vault, ansible-pull    |
+| Testing (controller)   | Disposable virsh VMs      | Full pipeline: bootstrap, vault, `ansible-pull`    |
 | Test verifier          | Testinfra (pytest)        | Structured assertions, parameterized, shared     |
 | Dotfiles               | Single role + runtime detection | Decoupled from infra roles              |
 | Shell config           | `conf.d/` drop-ins        | No file conflicts between roles                  |

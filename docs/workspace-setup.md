@@ -11,7 +11,7 @@
 <!--toc:end-->
 
 This checklist configures the Docker container running Claude Code so that
-linting, git operations, and GitHub CLI access all work directly inside the
+linting, `git` operations, and GitHub CLI access all work directly inside the
 workspace.
 
 Access is scoped to the `scbitworx` org only via a fine-grained personal
@@ -40,7 +40,7 @@ access token. Personal repos are not exposed to the container.
 ## GitHub Authentication (Fine-Grained PAT)
 
 A fine-grained personal access token scoped to the `scbitworx` org. Handles
-both git push/pull and `gh` CLI operations. No SSH keys, no scripts, no
+both `git` push/pull and `gh` CLI operations. No SSH keys, no scripts, no
 refresh logic.
 
 ### Create the Token
@@ -74,7 +74,7 @@ refresh logic.
   The `gh` CLI picks up `GH_TOKEN` automatically — no additional config
   needed.
 
-- [x] Configure git to use the token for HTTPS operations. Handled in
+- [x] Configure `git` to use the token for HTTPS operations. Handled in
       `entrypoint.sh` at runtime (rewrites both SSH and HTTPS URLs).
 
 ### Git Remote URLs
@@ -87,7 +87,7 @@ https://github.com/scbitworx/ansible-role-base.git    # correct
 https://oauth2:ghp_xxx@github.com/scbitworx/...       # wrong — stale PAT
 ```
 
-The `gh` CLI (authenticated via `GH_TOKEN`) acts as the git credential
+The `gh` CLI (authenticated via `GH_TOKEN`) acts as the `git` credential
 helper, so embedded tokens are unnecessary and will cause push failures
 when the token expires. Fix with:
 
@@ -97,7 +97,7 @@ git remote set-url origin https://github.com/scbitworx/<repo>.git
 
 ## Git Identity
 
-- [x] Configure git user inside the container. Handled in `entrypoint.sh`
+- [x] Configure `git` user inside the container. Handled in `entrypoint.sh`
       at runtime via `GIT_USER_NAME` and `GIT_USER_EMAIL` env vars (passed by
       `run-agent`).
 
@@ -149,7 +149,7 @@ docker build -t test-runner -f tools/Dockerfile.test-runner tools/
 This creates the Docker network, generates ephemeral SSH keys, starts the
 test-runner sidecar, then starts Claude Code. Everything is cleaned up on exit.
 
-### Usage from Inside Claude Code
+### Usage From Inside Claude Code
 
 ```bash
 # Full test suite
