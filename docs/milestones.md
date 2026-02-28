@@ -369,11 +369,11 @@ production host. The test VM receives the same group memberships and
 `host_vars` as the production host it models, but it is a separate,
 disposable libvirt VM.
 
-| Profile              | Models role stack for | Role stack                                        |
-|----------------------|-----------------------|---------------------------------------------------|
-| Server               | jupiter               | base → server → extensions → dotfiles             |
-| Workstation + laptop | ceres                 | base → workstation → laptop → extensions → dotfiles |
-| Workstation          | mars                  | base → workstation → extensions → dotfiles        |
+| Profile              | Models  | Roles                                    |
+| -------------------- | ------- | ---------------------------------------- |
+| Server               | jupiter | base, server, extensions, dotfiles       |
+| Workstation + laptop | ceres   | base, workstation, laptop, ext, dotfiles |
+| Workstation          | mars    | base, workstation, extensions, dotfiles  |
 
 **Tasks:**
 

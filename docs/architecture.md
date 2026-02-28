@@ -57,17 +57,17 @@ Each file, package list, and configuration resource is owned by **exactly
 one role**. This prevents idempotency conflicts regardless of run order and
 ensures there is only one place to change any given piece of configuration.
 
-| Concern | Owner | Example |
-|---------|-------|---------|
-| Base packages (ssh, sudo, etc.) | `base` | `base_packages` variable |
-| Server packages (fail2ban, etc.) | `server` | `server_packages` variable |
-| Workstation packages (git, GUI tools, etc.) | `workstation` | `workstation_packages` variable |
-| System-level config for a core concern | The core role that installs it | `server` owns `/etc/ssh/sshd_config` |
-| Service-specific packages and config | The extension role for that service | `syncthing_server` owns syncthing package and `/etc/syncthing/` |
-| `ansible-pull` wrapper script | Controller repo (`local.yml` `pre_tasks`) | `/usr/local/bin/ansible-pull-wrapper` |
-| `ansible-pull` scheduling | `base` role | Systemd timer (interval overridable via group_vars) |
-| Unattended security upgrades | `base` role | `unattended-upgrades` on Debian/Ubuntu; no-op on Arch |
-| User-level personal config | `dotfiles` | `dotfiles` owns `~/.config/git/config` |
+| Concern                                    | Owner                                      | Example                                                          |
+| ------------------------------------------ | ------------------------------------------ | ---------------------------------------------------------------- |
+| Base packages (ssh, sudo, etc.)            | `base`                                     | `base_packages` variable                                         |
+| Server packages (fail2ban, etc.)           | `server`                                   | `server_packages` variable                                       |
+| Workstation packages (git, GUI tools, etc.)| `workstation`                              | `workstation_packages` variable                                  |
+| System-level config for a core concern     | The core role that installs it             | `server` owns `/etc/ssh/sshd_config`                             |
+| Service-specific packages and config       | The extension role for that service        | `syncthing_server` owns syncthing package and `/etc/syncthing/`  |
+| `ansible-pull` wrapper script              | Controller repo (`local.yml` `pre_tasks`)  | `/usr/local/bin/ansible-pull-wrapper`                            |
+| `ansible-pull` scheduling                  | `base` role                                | Systemd timer (interval overridable via group_vars)              |
+| Unattended security upgrades               | `base` role                                | `unattended-upgrades` on Debian/Ubuntu; no-op on Arch            |
+| User-level personal config                 | `dotfiles`                                 | `dotfiles` owns `~/.config/git/config`                           |
 
 **How this handles overlapping requirements:** If both `devbox` and `dotfiles`
 need git to be installed, they don't both install it — `workstation` (or
@@ -178,11 +178,11 @@ Centralizing all version pins in one file provides:
 - **No silent version conflicts:** Because all pins live in one file, version
   mismatches are immediately visible and impossible to accidentally introduce.
 
-| Ecosystem | Library declares needs | Application pins versions |
-|-----------|------------------------|---------------------------|
-| npm       | `package.json`         | `package-lock.json`       |
-| Rust      | `Cargo.toml`           | `Cargo.lock`              |
-| Python    | `pyproject.toml`       | lockfile / `pip freeze`   |
+| Ecosystem | Library declares needs | Application pins versions     |
+| --------- | ---------------------- | ----------------------------- |
+| npm       | `package.json`         | `package-lock.json`           |
+| Rust      | `Cargo.toml`           | `Cargo.lock`                  |
+| Python    | `pyproject.toml`       | lockfile / `pip freeze`       |
 | **Ours**  | (roles are standalone) | controller `requirements.yml` |
 
 ### Why Exact Pins, Not Semver Ranges
@@ -224,11 +224,11 @@ retrieved from `pass` (password-store), backed by GPG.
 
 ### Vault Password Backend
 
-| Component | Choice | Rationale |
-|-----------|--------|-----------|
-| Backend | `pass` (password-store) | No service dependencies, offline-capable, GPG-backed |
-| Encryption | GPG keys (optionally hardware-backed) | Standard, well-audited, supports smartcards |
-| Vault ID | `scbitworx` (single ID) | Single maintainer — no need for multiple vault IDs |
+| Component  | Choice                                | Rationale                                            |
+| ---------- | ------------------------------------- | ---------------------------------------------------- |
+| Backend    | `pass` (password-store)               | No service dependencies, offline-capable, GPG-backed |
+| Encryption | GPG keys (optionally hardware-backed) | Standard, well-audited, supports smartcards          |
+| Vault ID   | `scbitworx` (single ID)               | Single maintainer — no need for multiple vault IDs   |
 
 ### Pass Store Layout
 
@@ -246,12 +246,12 @@ scbitworx/
 
 ### Resource Ownership
 
-| Resource | Owner |
-|----------|-------|
-| Vault client script (`ansible-vault-client`) | Controller `pre_tasks` |
-| Helper scripts (`ansible-vault-secret`, `ansible-vault-reveal`, `ansible-mkpasswd`) | Controller `pre_tasks` |
-| Vault-encrypted variable values | Inventory (`group_vars/`, `host_vars/`) |
-| Pass store and GPG keys | Operator (manual setup) |
+| Resource                                                                            | Owner                                   |
+| ----------------------------------------------------------------------------------- | --------------------------------------- |
+| Vault client script (`ansible-vault-client`)                                        | Controller `pre_tasks`                  |
+| Helper scripts (`ansible-vault-secret`, `ansible-vault-reveal`, `ansible-mkpasswd`) | Controller `pre_tasks`                  |
+| Vault-encrypted variable values                                                     | Inventory (`group_vars/`, `host_vars/`) |
+| Pass store and GPG keys                                                             | Operator (manual setup)                 |
 
 ### Why `pass` + GPG
 

@@ -10,10 +10,10 @@ prerequisites.
 
 Testing is split into two tiers, both managed by Molecule:
 
-| Tier | Driver | Where it runs | What it validates |
-|------|--------|---------------|-------------------|
-| **Docker scenario** (default) | Docker containers | CI (GitHub Actions) + test-runner sidecar | Role logic: packages, users, config files, templates, idempotency |
-| **Vagrant scenario** (integration) | Vagrant + libvirt VM | Developer workstation only | Real kernel, real `systemd`, real package manager, service life cycle |
+| Tier                               | Driver               | Where it runs                             | What it validates                                                      |
+| ---------------------------------- | -------------------- | ----------------------------------------- | ---------------------------------------------------------------------- |
+| **Docker scenario** (default)      | Docker containers    | CI (GitHub Actions) + test-runner sidecar | Role logic: packages, users, config files, templates, idempotency      |
+| **Vagrant scenario** (integration) | Vagrant + libvirt VM | Developer workstation only                | Real kernel, real `systemd`, real package manager, service life cycle  |
 
 Both scenarios share the same Testinfra test suite. Tests that require a
 real VM are marked `@pytest.mark.vm_only` and automatically skipped in
@@ -212,11 +212,11 @@ duplication of the `base_admin_users` test data between converge files.
 
 The shared file defines three test users:
 
-| User | Keys | password_hash | sudo_passwordless |
-|------|------|---------------|-------------------|
-| testuser1 | 2 keys | yes (SHA-512) | yes (default) |
-| testuser2 | 1 key | no | yes (default) |
-| testuser3 | 1 key | no | no |
+| User      | Keys   | password_hash | sudo_passwordless |
+| --------- | ------ | ------------- | ----------------- |
+| testuser1 | 2 keys | yes (SHA-512) | yes (default)     |
+| testuser2 | 1 key  | no            | yes (default)     |
+| testuser3 | 1 key  | no            | no                |
 
 ---
 
@@ -488,21 +488,21 @@ def test_unattended_upgrades_installed(host):
 
 ### Testinfra Patterns and Gotchas
 
-| Pattern | Notes |
-|---------|-------|
-| `host.file().contains()` | Uses regex — escape special characters (e.g., `r"\*\.conf"`) |
-| `host.file().linked_to` | Returns absolute path, not relative |
-| `host.user()` | Provides `.groups`, `.shell`, `.home`, `.exists` |
-| `host.run()` | For commands not covered by built-in modules |
-| Password hash in `molecule.yml` | `$` characters are interpreted as placeholders by Molecule's config parser — keep password hashes in `converge.yml` or `shared_vars.yml` instead |
+| Pattern                              | Notes                                                                                                                                                             |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `host.file().contains()`             | Uses regex — escape special characters (e.g., `r"\*\.conf"`)                                                                                                      |
+| `host.file().linked_to`              | Returns absolute path, not relative                                                                                                                               |
+| `host.user()`                        | Provides `.groups`, `.shell`, `.home`, `.exists`                                                                                                                  |
+| `host.run()`                         | For commands not covered by built-in modules                                                                                                                      |
+| Password hash in `molecule.yml`      | `$` characters are interpreted as placeholders by Molecule's config parser — keep password hashes in `converge.yml` or `shared_vars.yml` instead                  |
 
 ### Test Counts
 
-| Scenario | Passed | Skipped | Why skipped |
-|----------|--------|---------|-------------|
-| Docker default (3 platforms) | 326 | 10 | vm_only tests (6) + unattended-upgrades on Arch (4) |
-| Docker alternate (Arch only) | 8 | 0 | — |
-| Vagrant (Arch VM) | 108 | 4 | unattended-upgrades on Arch |
+| Scenario                     | Passed | Skipped | Why skipped                                         |
+| ---------------------------- | ------ | ------- | --------------------------------------------------- |
+| Docker default (3 platforms) | 524    | 10      | vm_only tests (6) + unattended-upgrades on Arch (4) |
+| Docker alternate (Arch only) | 15     | 0       | —                                                   |
+| Vagrant (Arch VM)            | 174    | 4       | unattended-upgrades on Arch                         |
 
 ---
 
@@ -544,11 +544,11 @@ no `pass` or GPG setup in `prepare.yml`.
 right password hash, does the template render correctly). Vault decryption is
 an orthogonal concern at the `ansible-pull` layer.
 
-| Molecule tests cover | Controller integration tests cover |
-|---------------------|------------------------------------|
-| Plaintext `password_hash` passed to user module | Full vault decryption via `--vault-id` |
-| `/etc/shadow` contains expected hash format | Bootstrap with vault-encrypted inventory |
-| Omitted `password_hash` leaves account locked | End-to-end: encrypted hash → decrypted → set in shadow |
+| Molecule tests cover                            | Controller integration tests cover                     |
+| ----------------------------------------------- | ------------------------------------------------------ |
+| Plaintext `password_hash` passed to user module | Full vault decryption via `--vault-id`                 |
+| `/etc/shadow` contains expected hash format     | Bootstrap with vault-encrypted inventory               |
+| Omitted `password_hash` leaves account locked   | End-to-end: encrypted hash → decrypted → set in shadow |
 
 ---
 
@@ -580,11 +580,11 @@ jobs:
 
 ### Required Collections
 
-| Collection | Why |
-|------------|-----|
+| Collection          | Why                                                     |
+| ------------------- | ------------------------------------------------------- |
 | `community.general` | `pacman` module, `timezone` module, `locale_gen` module |
-| `ansible.posix` | `authorized_key` module |
-| `community.docker` | Molecule Docker driver (CI only) |
+| `ansible.posix`     | `authorized_key` module                                 |
+| `community.docker`  | Molecule Docker driver (CI only)                        |
 
 ---
 
@@ -612,14 +612,14 @@ debugging. `test` destroys everything on completion or failure.
 
 ## Design Decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Verifier | Testinfra (pytest) | Structured assertions, parameterized tests, better failure output than Ansible assert |
-| Test sharing | Single `molecule/tests/` directory | Avoids duplicating tests between Docker and Vagrant scenarios |
-| VM-only marker | `@pytest.mark.vm_only` | Clean separation without separate test files |
-| Vagrant venv | `~/.virtualenvs/molecule/` | System pip blocked on Arch, AUR has circular deps |
-| Wrapper script | `run.sh` | Encapsulates venv activation, workarounds, and nftables — no host PATH changes |
-| Arch Docker image | Official `archlinux/archlinux:latest` | No third-party dependency risk |
-| ANSIBLE_LIBRARY fix | `config_options.defaults.library` | Matches dev-sec pattern; native Ansible config rather than env var override |
-| Libvirt network | Reuse `default` (virbr0) | Avoids vagrant-libvirt creating virbr1, which fails with Docker's nftables |
-| Full upgrade in prepare | `pacman -Syu` in VM prepare only | Test environment concern, not role concern; prevents partial upgrade breakage |
+| Decision                | Choice                                    | Rationale                                                                             |
+| ----------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------- |
+| Verifier                | Testinfra (pytest)                        | Structured assertions, parameterized tests, better failure output than Ansible assert |
+| Test sharing            | Single `molecule/tests/` directory        | Avoids duplicating tests between Docker and Vagrant scenarios                         |
+| VM-only marker          | `@pytest.mark.vm_only`                    | Clean separation without separate test files                                          |
+| Vagrant venv            | `~/.virtualenvs/molecule/`                | System pip blocked on Arch, AUR has circular deps                                     |
+| Wrapper script          | `run.sh`                                  | Encapsulates venv activation, workarounds, and nftables — no host PATH changes        |
+| Arch Docker image       | Official `archlinux/archlinux:latest`     | No third-party dependency risk                                                        |
+| ANSIBLE_LIBRARY fix     | `config_options.defaults.library`         | Matches dev-sec pattern; native Ansible config rather than env var override           |
+| Libvirt network         | Reuse `default` (virbr0)                  | Avoids vagrant-libvirt creating virbr1, which fails with Docker's nftables            |
+| Full upgrade in prepare | `pacman -Syu` in VM prepare only          | Test environment concern, not role concern; prevents partial upgrade breakage         |

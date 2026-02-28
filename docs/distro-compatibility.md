@@ -23,11 +23,13 @@ In `tasks/main.yml`:
 
 ```yaml
 - name: Load distro-specific variables
-  ansible.builtin.include_vars: "{{ lookup('first_found', params) }}"
+  ansible.builtin.include_vars: >-
+    {{ lookup('first_found', params) }}
   vars:
     params:
       files:
-        - "{{ ansible_facts.distribution }}-{{ ansible_facts.distribution_version }}.yml"
+        - "{{ ansible_facts.distribution }}-\
+          {{ ansible_facts.distribution_version }}.yml"
         - "{{ ansible_facts.distribution }}.yml"
         - "{{ ansible_facts.os_family }}.yml"
         - main.yml

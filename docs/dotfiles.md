@@ -27,11 +27,11 @@ symlink is created.
 
 **Tools with native `~/.config/` support (no symlink needed):**
 
-| Tool   | Config path                    |
-| ------ | ------------------------------ |
-| `git`  | `~/.config/git/config`         |
-| `nvim` | `~/.config/nvim/init.lua`      |
-| `tmux` | `~/.config/tmux/tmux.conf` (3.1+) |
+| Tool   | Config path                         |
+| ------ | ----------------------------------- |
+| `git`  | `~/.config/git/config`              |
+| `nvim` | `~/.config/nvim/init.lua`           |
+| `tmux` | `~/.config/tmux/tmux.conf` (3.1+)   |
 
 **Tools requiring symlinks:**
 

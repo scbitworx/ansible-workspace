@@ -51,13 +51,13 @@ refresh logic.
 - [x] Set **expiration** (90 days recommended; regenerate when it expires)
 - [x] Grant these **repository permissions**:
 
-  | Permission | Access | Why |
-  |---|---|---|
-  | Contents | Read & Write | Push/pull code, create branches, tags |
-  | Metadata | Read-only | Required (always on) |
-  | Administration | Read & Write | Create repos via API |
-  | Actions | Read-only | Check CI/workflow status |
-  | Pull requests | Read & Write | Create and manage PRs |
+  | Permission     | Access       | Why                                   |
+  | -------------- | ------------ | ------------------------------------- |
+  | Contents       | Read & Write | Push/pull code, create branches, tags |
+  | Metadata       | Read-only    | Required (always on)                  |
+  | Administration | Read & Write | Create repos via API                  |
+  | Actions        | Read-only    | Check CI/workflow status              |
+  | Pull requests  | Read & Write | Create and manage PRs                 |
 
 - [x] Click **Generate token** and copy the value
 
@@ -153,12 +153,12 @@ test-runner sidecar, then starts Claude Code. Everything is cleaned up on exit.
 
 ```bash
 # Full test suite
-ssh test-runner "cd /workspace/ansible-role-base && molecule test"
+ssh test-runner "env -C /workspace/ansible-role-base molecule test"
 
 # Fast iteration (reuse containers between runs)
-ssh test-runner "cd /workspace/ansible-role-base && molecule converge"
-ssh test-runner "cd /workspace/ansible-role-base && molecule verify"
-ssh test-runner "cd /workspace/ansible-role-base && molecule destroy"
+ssh test-runner "env -C /workspace/ansible-role-base molecule converge"
+ssh test-runner "env -C /workspace/ansible-role-base molecule verify"
+ssh test-runner "env -C /workspace/ansible-role-base molecule destroy"
 ```
 
 ### Security Model
@@ -185,11 +185,14 @@ Run these inside the container to confirm everything works:
 - [x] `ansible-lint --version` — ansible-lint installed
 - [x] `gh auth status` — GitHub CLI authenticated
 - [x] `gh repo list scbitworx` — can list org repos
-- [x] `git clone https://github.com/scbitworx/ansible-controller.git /tmp/test && rm -rf /tmp/test` — clone works
+- [x] Clone works:
+  `git clone https://github.com/scbitworx/ansible-controller.git`
 
 Test the sidecar integration:
 
 - [ ] `ssh test-runner hostname` — prints "test-runner"
-- [ ] `ssh test-runner "cd /workspace/ansible-role-scaffold && molecule test"` — full pipeline passes
-- [ ] Verify no credentials leak: `ssh test-runner 'echo $ANTHROPIC_API_KEY'` — empty
+- [ ] Full pipeline passes:
+  `ssh test-runner "cd /workspace/ansible-role-scaffold && molecule test"`
+- [ ] Verify no credentials leak:
+  `ssh test-runner 'echo $ANTHROPIC_API_KEY'` — empty
 - [ ] Exit Claude Code — test-runner auto-stops, network cleaned up, keys deleted

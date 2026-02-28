@@ -5,17 +5,24 @@ Project-wide documentation, design decisions, and development tooling for the
 
 ## Contents
 
-| Directory | Purpose |
-|---|---|
-| `docs/` | Architecture, naming conventions, testing strategy, milestones |
-| `tools/` | Dockerfile, entrypoint, and run script for the development container |
-| `CLAUDE.md` | Project instructions for Claude Code |
+| Directory   | Purpose                                            |
+| ----------- | -------------------------------------------------- |
+| `docs/`     | Architecture, naming, testing strategy, milestones |
+| `tools/`    | Dockerfile, entrypoint, and run script             |
+| `CLAUDE.md` | Project instructions for Claude Code               |
 
 ## Related Repositories
 
-- [ansible-controller](https://github.com/scbitworx/ansible-controller) — Playbook, inventory, and `requirements.yml`
-- [ansible-role-scaffold](https://github.com/scbitworx/ansible-role-scaffold) — Reference template for all roles
-- [ansible-role-base](https://github.com/scbitworx/ansible-role-base) — Base role = run on all hosts
+- [ansible-controller][ctrl] —
+  Playbook, inventory, and `requirements.yml`
+- [ansible-role-scaffold][scaffold] —
+  Reference template for all roles
+- [ansible-role-base][base] —
+  Base role applied to all hosts
+
+[ctrl]: https://github.com/scbitworx/ansible-controller
+[scaffold]: https://github.com/scbitworx/ansible-role-scaffold
+[base]: https://github.com/scbitworx/ansible-role-base
 
 ## License
 

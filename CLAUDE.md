@@ -132,11 +132,11 @@ meta/main.yml:         role_name: syncthing_server
 
 ## Hosts and Inventory
 
-| Hostname | Type    | OS         | Groups                | Notes                   |
-| -------- | ------- | ---------- | --------------------- | ----------------------- |
-| ceres    | Laptop  | Arch Linux | workstations, laptops | System76 darp6 hardware |
-| mars     | Desktop | Arch Linux | workstations          | Desktop workstation     |
-| jupiter  | Server  | Arch Linux | servers               | Future: migrate to Ubuntu/Debian |
+| Hostname | Type    | OS         | Groups                | Notes                              |
+| -------- | ------- | ---------- | --------------------- | ---------------------------------- |
+| ceres    | Laptop  | Arch Linux | workstations, laptops | System76 darp6 hardware            |
+| mars     | Desktop | Arch Linux | workstations          | Desktop workstation                |
+| jupiter  | Server  | Arch Linux | servers               | Future: migrate to Ubuntu/Debian   |
 
 ### Inventory Structure
 
@@ -267,11 +267,11 @@ dependencies: []
 
 ## Distro Compatibility
 
-| Distribution | Use Case                       | Testing |
-| ------------ | ------------------------------ | ------- |
-| Arch Linux   | Workstations (current primary) | Yes     |
-| Ubuntu       | Servers, potential workstations | Yes    |
-| Debian       | Servers, potential workstations | Yes    |
+| Distribution | Use Case                         | Testing |
+| ------------ | -------------------------------- | ------- |
+| Arch Linux   | Workstations (current primary)   | Yes     |
+| Ubuntu       | Servers, potential workstations  | Yes     |
+| Debian       | Servers, potential workstations  | Yes     |
 
 Each role uses `first_found` + `include_vars` for distro-specific variables
 and `ansible.builtin.package` for package manager abstraction. Most roles
@@ -309,17 +309,17 @@ Unattended full system upgrades on Arch are unsafe and are not performed.
 
 Each file, package, and config resource is owned by **exactly one role**.
 
-| Concern                      | Owner              | Example                    |
-| ---------------------------- | ------------------ | -------------------------- |
-| Base packages                | `base`             | `base_packages`            |
-| Server packages              | `server`           | `server_packages`          |
-| Workstation packages         | `workstation`      | `workstation_packages`     |
-| Service-specific packages    | Extension role     | `syncthing_server` owns syncthing |
-| `ansible-pull` wrapper       | Controller `pre_tasks` | `/usr/local/bin/ansible-pull-wrapper` |
-| Vault scripts                | Controller `pre_tasks` | `/usr/local/bin/ansible-vault-client` |
-| `ansible-pull` scheduling    | `base`             | Systemd timer (interval overridable via group_vars) |
-| Unattended security upgrades | `base`             | `unattended-upgrades` on Debian/Ubuntu; no-op on Arch |
-| User-level personal config   | `dotfiles`         | `~/.config/git/config`     |
+| Concern                      | Owner                  | Example                                                |
+| ---------------------------- | ---------------------- | ------------------------------------------------------ |
+| Base packages                | `base`                 | `base_packages`                                        |
+| Server packages              | `server`               | `server_packages`                                      |
+| Workstation packages         | `workstation`          | `workstation_packages`                                 |
+| Service-specific packages    | Extension role         | `syncthing_server` owns syncthing                      |
+| `ansible-pull` wrapper       | Controller `pre_tasks` | `/usr/local/bin/ansible-pull-wrapper`                  |
+| Vault scripts                | Controller `pre_tasks` | `/usr/local/bin/ansible-vault-client`                  |
+| `ansible-pull` scheduling    | `base`                 | Systemd timer (interval overridable via group_vars)    |
+| Unattended security upgrades | `base`                 | `unattended-upgrades` on Debian/Ubuntu; no-op on Arch  |
+| User-level personal config   | `dotfiles`             | `~/.config/git/config`                                 |
 
 ---
 
@@ -336,12 +336,12 @@ runtime via `--vault-id`. The vault password is retrieved from `pass`
 
 Helper scripts deployed by the controller to `/usr/local/bin/`:
 
-| Script | Purpose |
-|--------|---------|
-| `ansible-vault-client` | Retrieves vault password from `pass` |
-| `ansible-vault-secret` | Encrypts a string as a vault variable |
-| `ansible-vault-reveal` | Decrypts a variable from a YAML file |
-| `ansible-mkpasswd` | Generates SHA-512 password hashes interactively |
+| Script                 | Purpose                                          |
+| ---------------------- | ------------------------------------------------ |
+| `ansible-vault-client` | Retrieves vault password from `pass`             |
+| `ansible-vault-secret` | Encrypts a string as a vault variable            |
+| `ansible-vault-reveal` | Decrypts a variable from a YAML file             |
+| `ansible-mkpasswd`     | Generates SHA-512 password hashes interactively  |
 
 > For detailed rationale (why `pass`, vault ID strategy, resource ownership),
 > see [docs/architecture.md](docs/architecture.md#secrets-management)
@@ -429,17 +429,17 @@ does not grant full access.
 
 ## Implementation Milestones
 
-| # | Milestone                          | Status   | Summary                                    |
-|---|------------------------------------| -------- |--------------------------------------------|
-| 1 | Foundation                         | Complete | GitHub org + controller repo               |
-| 2 | Scaffold Role + Testing + CI/CD    | Complete | Walking skeleton to validate full pipeline |
-| 3 | Base Role                          | Complete | Core system configuration                  |
-| 4 | Single-VM Integration (Arch)       | Complete | Validate controller pipeline end-to-end    |
-| 5 | Server + Workstation Roles         | Pending  | Group-level core roles                     |
-| 6 | Laptop Core Role                   | Pending  | Laptop-specific core role                  |
-| 7 | Initial Extension Roles            | Pending  | First extension roles to validate pattern  |
-| 8 | Dotfiles Role                      | Pending  | Personal config with runtime detection     |
-| 9 | Full Integration Matrix            | Pending  | All distros, all profiles with disposable VMs |
+| # | Milestone                        | Status   | Summary                                       |
+| - | -------------------------------- | -------- | --------------------------------------------- |
+| 1 | Foundation                       | Complete | GitHub org + controller repo                  |
+| 2 | Scaffold Role + Testing + CI/CD  | Complete | Walking skeleton to validate full pipeline    |
+| 3 | Base Role                        | Complete | Core system configuration                     |
+| 4 | Single-VM Integration (Arch)     | Complete | Validate controller pipeline end-to-end       |
+| 5 | Server + Workstation Roles       | Pending  | Group-level core roles                        |
+| 6 | Laptop Core Role                 | Pending  | Laptop-specific core role                     |
+| 7 | Initial Extension Roles          | Pending  | First extension roles to validate pattern     |
+| 8 | Dotfiles Role                    | Pending  | Personal config with runtime detection        |
+| 9 | Full Integration Matrix          | Pending  | All distros, all profiles with disposable VMs |
 
 > For detailed task lists, deliverables, and exit criteria for each
 > milestone, see [docs/milestones.md](docs/milestones.md)
@@ -461,30 +461,30 @@ primary session-to-session continuity mechanism.
 
 ## Key Design Decisions Summary
 
-| Decision               | Choice                    | Rationale                                       |
-| ---------------------- | ------------------------- | ----------------------------------------------- |
-| Composition unit       | Standalone roles          | Simpler than collections for single maintainer   |
-| Repo strategy          | One repo per role         | Independent versioning and testing               |
-| Repo hosting           | GitHub Organization       | Keeps personal profile clean                     |
-| Org naming             | `scbitworx`               | GitHub does not allow underscores in org names   |
-| Repo naming            | `ansible-role-<name>`     | Convention recognized by `ansible-galaxy`         |
-| Role naming            | Underscores only          | Required by `ansible-lint`; matches repo name    |
-| Variable naming        | `<role_name>_` prefix     | Prevents namespace collisions                    |
-| Version pinning        | Controller `requirements.yml` (exact tags) | No range support; lockfile pattern  |
-| Role composition       | Playbook-driven, no `meta/main.yml` deps | Standalone; independently testable  |
-| Resource ownership     | Each resource owned by exactly one role | No idempotency conflicts            |
-| Distro compatibility   | Per-role `first_found` + `include_vars` | Cascading specificity; graceful fallback |
-| Entry point            | `ansible-pull`            | Self-contained, no control node needed           |
-| Testing (Docker)       | Molecule + Docker         | Community standard; seconds to spin up; CI       |
-| Testing (Vagrant)      | Molecule + Vagrant + libvirt | Full kernel, real systemd; developer workstation |
-| Testing (controller)   | Disposable virsh VMs      | Full pipeline: bootstrap, vault, `ansible-pull`    |
-| Test verifier          | Testinfra (pytest)        | Structured assertions, parameterized, shared     |
-| Dotfiles               | Single role + runtime detection | Decoupled from infra roles              |
-| Shell config           | `conf.d/` drop-ins        | No file conflicts between roles                  |
-| Secrets backend        | `pass` + GPG              | No service deps, offline, hardware key support   |
-| Package state          | `state: present` only     | Avoids Arch partial upgrades; consistent across distros |
-| `ansible-pull` schedule | `base` role (systemd timer) | All hosts converge; interval overridable via group_vars |
-| Unattended upgrades    | `base` role (Debian/Ubuntu only) | No-op on Arch; unsafe on rolling release    |
+| Decision                | Choice                                         | Rationale                                                |
+| ----------------------- | ---------------------------------------------- | -------------------------------------------------------- |
+| Composition unit        | Standalone roles                               | Simpler than collections for single maintainer           |
+| Repo strategy           | One repo per role                              | Independent versioning and testing                       |
+| Repo hosting            | GitHub Organization                            | Keeps personal profile clean                             |
+| Org naming              | `scbitworx`                                    | GitHub does not allow underscores in org names           |
+| Repo naming             | `ansible-role-<name>`                          | Convention recognized by `ansible-galaxy`                |
+| Role naming             | Underscores only                               | Required by `ansible-lint`; matches repo name            |
+| Variable naming         | `<role_name>_` prefix                          | Prevents namespace collisions                            |
+| Version pinning         | Controller `requirements.yml` (exact tags)     | No range support; lockfile pattern                       |
+| Role composition        | Playbook-driven, no `meta/main.yml` deps       | Standalone; independently testable                       |
+| Resource ownership      | Each resource owned by exactly one role        | No idempotency conflicts                                 |
+| Distro compatibility    | Per-role `first_found` + `include_vars`        | Cascading specificity; graceful fallback                 |
+| Entry point             | `ansible-pull`                                 | Self-contained, no control node needed                   |
+| Testing (Docker)        | Molecule + Docker                              | Community standard; seconds to spin up; CI               |
+| Testing (Vagrant)       | Molecule + Vagrant + libvirt                   | Full kernel, real systemd; developer workstation         |
+| Testing (controller)    | Disposable virsh VMs                           | Full pipeline: bootstrap, vault, `ansible-pull`          |
+| Test verifier           | Testinfra (pytest)                             | Structured assertions, parameterized, shared             |
+| Dotfiles                | Single role + runtime detection                | Decoupled from infra roles                               |
+| Shell config            | `conf.d/` drop-ins                             | No file conflicts between roles                          |
+| Secrets backend         | `pass` + GPG                                   | No service deps, offline, hardware key support           |
+| Package state           | `state: present` only                          | Avoids Arch partial upgrades; consistent across distros  |
+| `ansible-pull` schedule | `base` role (systemd timer)                    | All hosts converge; interval overridable via group_vars  |
+| Unattended upgrades     | `base` role (Debian/Ubuntu only)               | No-op on Arch; unsafe on rolling release                 |
 
 ---
 
@@ -530,12 +530,21 @@ scbitworx/
 
 ## Detailed Reference Documentation
 
-- [active-milestone.md](active-milestone.md) — **Read this first** — current milestone granular task tracking
-- [docs/architecture.md](docs/architecture.md) — Architecture rationale, role composition, resource ownership, version pinning
-- [docs/naming-rationale.md](docs/naming-rationale.md) — Why underscores, community precedents, variable conventions
-- [docs/ansible-pull.md](docs/ansible-pull.md) — Playbook structure, wrapper script, bootstrap, scheduling
-- [docs/distro-compatibility.md](docs/distro-compatibility.md) — `first_found` pattern, per-role distro handling
-- [docs/testing.md](docs/testing.md) — Docker and Vagrant scenarios, Testinfra, CI pipeline, workarounds
-- [docs/dotfiles.md](docs/dotfiles.md) — XDG conventions, runtime detection, shell drop-in pattern
-- [docs/milestones.md](docs/milestones.md) — Implementation milestones with full task lists
-- [docs/workspace-setup.md](docs/workspace-setup.md) — Claude Code container setup checklist
+- [active-milestone.md](active-milestone.md) — **Read this first** —
+  current milestone granular task tracking
+- [docs/architecture.md](docs/architecture.md) — Architecture rationale,
+  role composition, resource ownership, version pinning
+- [docs/naming-rationale.md](docs/naming-rationale.md) — Why underscores,
+  community precedents, variable conventions
+- [docs/ansible-pull.md](docs/ansible-pull.md) — Playbook structure,
+  wrapper script, bootstrap, scheduling
+- [docs/distro-compatibility.md](docs/distro-compatibility.md) —
+  `first_found` pattern, per-role distro handling
+- [docs/testing.md](docs/testing.md) — Docker and Vagrant scenarios,
+  Testinfra, CI pipeline, workarounds
+- [docs/dotfiles.md](docs/dotfiles.md) — XDG conventions, runtime
+  detection, shell drop-in pattern
+- [docs/milestones.md](docs/milestones.md) — Implementation milestones
+  with full task lists
+- [docs/workspace-setup.md](docs/workspace-setup.md) — Claude Code
+  container setup checklist
