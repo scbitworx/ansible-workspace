@@ -36,9 +36,23 @@ blockers, and iteration notes.
   when a new milestone begins.
 - At the start of each new Claude Code session, read `active-milestone.md`
   to understand where work left off.
-- When a milestone is complete, delete `active-milestone.md` (or overwrite
-  it with the next milestone's content), update `docs/milestones.md` status
-  if needed, and update the Project Status section above.
+- When a milestone is complete, follow the **Milestone Completion Procedure**
+  below.
+
+### Milestone Completion Procedure
+
+1. **Verify exit criteria** — confirm all deliverables listed in
+   `docs/milestones.md` for the milestone are met.
+2. **Update `docs/milestones.md`** — change the milestone's status from
+   `Pending` to `Complete`.
+3. **Update this file's Project Status** — update the status line and
+   summary paragraph at the top of CLAUDE.md to reflect the new state.
+4. **Overwrite `active-milestone.md`** — replace its contents with the
+   next milestone's granular task checklist, or delete the file if no
+   milestone is immediately starting.
+5. **Tag and pin** — if the milestone produced a new role version, tag the
+   repo with a semver tag and update the controller's `requirements.yml`.
+6. **Commit all documentation changes** in the ansible-workspace repo.
 
 ---
 
@@ -187,8 +201,11 @@ ansible-controller/
     bootstrap.sh                     # first-run bootstrap
     integration/                     # virsh-based integration testing
       create-base-vms.sh
+      generate-test-gpg-key.sh
+      run-all.sh
       run-integration-test.sh
       verify-state.sh
+      testdata/                      # VM images, SSH keys, GPG key
   templates/
     ansible-pull-wrapper.sh.j2       # wrapper deployed to /usr/local/bin/
     ansible-vault-client.sh.j2       # vault password client (pass backend)

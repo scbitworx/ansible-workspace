@@ -50,13 +50,18 @@ from deriving an incorrect name.
 
 ---
 
-## Why No `namespace` in `meta/main.yml`
+## Why `namespace` Is Set Explicitly in `meta/main.yml`
 
 Galaxy derives the namespace from the account that owns the role, not from
 the metadata file. Neither Jeff Geerling nor Robert de Bock set `namespace`
-in their roles' `meta/main.yml`. Including it is harmless but creates a
-potential mismatch if the Galaxy namespace ever differs from the value in the
-file.
+in their roles' `meta/main.yml`, because for Galaxy publishing it is
+redundant.
+
+However, **Molecule uses `namespace` from `meta/main.yml`** to resolve the
+role's fully qualified name during testing. Without it, Molecule may fail to
+locate the role in `converge.yml` when referenced as `scbitworx.<role_name>`.
+We set `namespace: scbitworx` explicitly in every role to ensure consistent
+behavior across Galaxy, Molecule, and `ansible-galaxy install`.
 
 ---
 

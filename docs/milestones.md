@@ -31,6 +31,8 @@ deferred until enough roles exist to make cross-profile testing meaningful.
 
 ## Milestone 1: Foundation — GitHub Organization and Controller Repo
 
+**Status:** Complete
+
 **Goal:** Establish the GitHub organization and create the controller
 repository with inventory, playbook skeleton, `ansible-pull` wrapper, and
 shared configuration files.
@@ -62,6 +64,8 @@ shared configuration files.
 ---
 
 ## Milestone 2: Scaffold Role, Testing Pipeline, and CI/CD
+
+**Status:** Complete
 
 **Goal:** Create a trivial scaffold role (`ansible-role-scaffold`) that
 validates the entire toolchain end-to-end — Molecule, Docker images, linting,
@@ -134,6 +138,8 @@ The scaffold role is kept permanently as a reference template.
 
 ## Milestone 3: Base Role
 
+**Status:** Complete
+
 **Goal:** Create the `base` role with full Molecule testing across all three
 target distributions.
 
@@ -179,6 +185,8 @@ with optional password management and vault integration in the controller.
 ---
 
 ## Milestone 4: Single-VM Integration Testing (Arch Linux)
+
+**Status:** Complete
 
 **Goal:** Validate the controller pipeline end-to-end on a single disposable
 Arch Linux libvirt VM, using only the base role.
@@ -230,6 +238,8 @@ single Arch Linux VM with the base role.
 
 ## Milestone 5: Server and Workstation Roles
 
+**Status:** Pending
+
 **Goal:** Create `server` and `workstation` standalone roles.
 
 **Tasks:**
@@ -260,6 +270,8 @@ layers.
 
 ## Milestone 6: Laptop Core Role
 
+**Status:** Pending
+
 **Goal:** Create the `laptop` standalone core role.
 
 **Tasks:**
@@ -282,6 +294,8 @@ layers.
 ---
 
 ## Milestone 7: Initial Extension Roles
+
+**Status:** Pending
 
 **Goal:** Create the first set of extension roles to validate the pattern.
 
@@ -312,6 +326,8 @@ layers.
 
 ## Milestone 8: Dotfiles Role
 
+**Status:** Pending
+
 **Goal:** Create the `dotfiles` role with runtime package detection and XDG
 `~/.config/` convention.
 
@@ -335,6 +351,8 @@ layers.
 ---
 
 ## Milestone 9: Full Integration Matrix (virsh VMs — All Distros)
+
+**Status:** Pending
 
 **Goal:** Extend the single-VM integration pipeline (Milestone 4) to cover
 all three distributions and all host profiles with full role composition.

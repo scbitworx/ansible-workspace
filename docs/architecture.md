@@ -62,7 +62,7 @@ ensures there is only one place to change any given piece of configuration.
 | Base packages (ssh, sudo, etc.)            | `base`                                     | `base_packages` variable                                         |
 | Server packages (fail2ban, etc.)           | `server`                                   | `server_packages` variable                                       |
 | Workstation packages (git, GUI tools, etc.)| `workstation`                              | `workstation_packages` variable                                  |
-| System-level config for a core concern     | The core role that installs it             | `server` owns `/etc/ssh/sshd_config`                             |
+| System-level config for a core concern     | The core role that installs it             | `base` owns `/etc/ssh/sshd_config`                               |
 | Service-specific packages and config       | The extension role for that service        | `syncthing_server` owns syncthing package and `/etc/syncthing/`  |
 | `ansible-pull` wrapper script              | Controller repo (`local.yml` `pre_tasks`)  | `/usr/local/bin/ansible-pull-wrapper`                            |
 | `ansible-pull` scheduling                  | `base` role                                | Systemd timer (interval overridable via group_vars)              |

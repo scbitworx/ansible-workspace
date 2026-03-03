@@ -190,9 +190,9 @@ Run these inside the container to confirm everything works:
 
 Test the sidecar integration:
 
-- [ ] `ssh test-runner hostname` — prints "test-runner"
-- [ ] Full pipeline passes:
-  `ssh test-runner "cd /workspace/ansible-role-scaffold && molecule test"`
-- [ ] Verify no credentials leak:
+- [x] `ssh test-runner hostname` — prints "test-runner"
+- [x] Full pipeline passes:
+  `ssh test-runner "env -C /workspace/ansible-role-scaffold molecule test"`
+- [x] Verify no credentials leak:
   `ssh test-runner 'echo $ANTHROPIC_API_KEY'` — empty
-- [ ] Exit Claude Code — test-runner auto-stops, network cleaned up, keys deleted
+- [x] Exit Claude Code — test-runner auto-stops, network cleaned up, keys deleted
